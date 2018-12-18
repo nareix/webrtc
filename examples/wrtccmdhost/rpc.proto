@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+message Result {
+  int64 code = 10000;
+  string error = 10001;
+}
+
+message NewPCReq {
+}
+
+message NewPCRes {
+  Result res = 1;
+  uint64 pcid = 2;
+}
+
+message SetDescReq {
+  uint64 pcid = 3;
+  string type = 4;
+  string sdp = 5; 
+}
+
+message SetDescRes {
+  Result res = 6;
+  string sdp = 7;
+}
+
+message OfferAnswerReq {
+  uint64 pcid = 8;
+  bool audio = 9;
+  bool video = 10;
+}
+
+message OfferAnswerRes {
+  Result res = 11;
+  string sdp = 12;
+}
+
+enum TrackType {
+  VIDEO = 0;
+  AUDIO = 1;
+}
+
+message TrackSrc {
+  uint64 tsid = 13;
+  TrackType type = 14;
+}
+
+message NewUrlTracksReq {
+  string url = 15;
+}
+
+message NewUrlTracksRes {
+  Result res = 16;
+  repeated TrackSrc trackSrcs = 17;
+}
+
+message NewTrackSrcsRes {
+  Result res = 18;
+  repeated TrackSrc trackSrcs = 19;
+}
+
+message Frag {
+  uint64 off = 20;
+  uint64 len = 21;
+}
+
+message TrackSrcSendPacketReq {
+  uint64 tsid = 21;
+  Packet pkt = 22;
+}
+
+message Packet {
+  TrackType type = 23;
+  bytes buf = 24;
+  repeated Frag frags = 25;
+  int32 sampleRate = 26;
+  int32 bitsPerSample = 27;
+  int32 nChannels = 28;
+  int32 nFrames = 29;
+}
+
+message OnTrackPacketMsg {
+  uint64 pcid = 30;
+  Packet pkt = 31;
+}
+
+message AddTracksReq {
+  uint64 pcid = 32;
+  repeated TrackSrc trackSrcs = 33;
+}
+
+message Empty {
+
+}
+
+service Rpc {
+  rpc NewPC(NewPCReq) returns (NewPCRes) {}
+  rpc CreateOffer(OfferAnswerReq) returns (OfferAnswerRes) {}
+  rpc CreateAnswer(OfferAnswerReq) returns (OfferAnswerRes) {}
+  rpc SetLocalDesc(SetDescReq) returns (SetDescRes) {}
+  rpc SetRemoteDesc(SetDescReq) returns (SetDescRes) {}
+  rpc AddTracks(AddTracksReq) returns (Empty) {}
+
+  rpc NewUrlTracks(NewUrlTracksReq) returns (NewUrlTracksRes) {}
+  rpc NewTrackSrcs(Empty) returns (NewTrackSrcsRes) {}
+  rpc TrackSrcSendPacket(TrackSrcSendPacketReq) returns (Empty) {}
+
+  rpc OnTrackPacket(OnTrackPacketMsg) returns (Empty) {}
+}

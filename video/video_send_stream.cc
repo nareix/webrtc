@@ -33,6 +33,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/trace_event.h"
 #include "rtc_base/weak_ptr.h"
+#include "rtc_base/stringencode.h"
 #include "system_wrappers/include/field_trial.h"
 #include "video/call_stats.h"
 #include "video/payload_router.h"
@@ -584,10 +585,32 @@ void VideoSendStream::Stop() {
   worker_queue_->PostTask([send_stream] { send_stream->Stop(); });
 }
 
+void VideoSendStream::OnFrame(const VideoFrame& frame) {
+  auto d = frame.encoded_img_data();
+  LOG(LS_VERBOSE) << "VideoSendStream::OnFrame " << int(d[0]);
+
+  /*
+  VideoSendStreamImpl* send_stream = send_stream_.get();
+
+  CodecSpecificInfo codec_specific;
+  codec_specific.codecType = kVideoCodecH264;
+  codec_specific.codecSpecific.H264.packetization_mode = H264PacketizationMode::SingleNalUnit;
+
+  EncodedImage img(&d[0], d.size(), d.size());
+
+  RTPFragmentationHeader frag_header;
+  RtpFragmentize(&encoded_image_, &encoded_image_buffer_, *frame_buffer, &info,
+                 &frag_header);
+
+  send_stream->OnEncodedImage(img, &codec_specific);
+  */
+}
+
 void VideoSendStream::SetSource(
     rtc::VideoSourceInterface<webrtc::VideoFrame>* source,
     const DegradationPreference& degradation_preference) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
+  //source->AddOrUpdateSink(this, rtc::VideoSinkWants());
   video_stream_encoder_->SetSource(source, degradation_preference);
 }
 
@@ -952,7 +975,13 @@ void VideoSendStreamImpl::OnEncoderConfigurationChanged(
 EncodedImageCallback::Result VideoSendStreamImpl::OnEncodedImage(
     const EncodedImage& encoded_image,
     const CodecSpecificInfo* codec_specific_info,
-    const RTPFragmentationHeader* fragmentation) {
+    const RTPFragmentationHeader* fragmentation) {  
+  
+  LOG(LS_VERBOSE) << "VideoSendStreamImpl::OnEncodedImageData " << encoded_image._length << " " << rtc::hex_encode((const char*)encoded_image._buffer, encoded_image._length);
+  for (int i = 0; i < fragmentation->fragmentationVectorSize; i++) {
+    LOG(LS_VERBOSE) << "VideoSendStreamImpl::OnEncodedImageFrag " << fragmentation->fragmentationOffset[i] << " " << fragmentation->fragmentationLength[i];
+  }
+
   // Encoded is called on whatever thread the real encoder implementation run
   // on. In the case of hardware encoders, there might be several encoders
   // running in parallel on different threads.

@@ -24,6 +24,11 @@ VideoFrame::VideoFrame(const rtc::scoped_refptr<VideoFrameBuffer>& buffer,
       timestamp_us_(timestamp_us),
       rotation_(rotation) {}
 
+VideoFrame::VideoFrame(uint8_t *encoded_img_data, int len): video_frame_buffer_(nullptr) {
+  encoded_img_data_.resize(len);
+  memcpy(&encoded_img_data_[0], encoded_img_data, len);
+}
+
 VideoFrame::VideoFrame(const rtc::scoped_refptr<VideoFrameBuffer>& buffer,
                        uint32_t timestamp,
                        int64_t render_time_ms,

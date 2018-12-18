@@ -14,6 +14,7 @@
 #include "common_audio/signal_processing/include/signal_processing_library.h"
 #include "modules/audio_coding/include/audio_coding_module.h"
 #include "modules/audio_device/audio_device_impl.h"
+#include "modules/audio_device/include/fake_audio_device.h"
 #include "modules/audio_processing/include/audio_processing.h"
 #include "rtc_base/format_macros.h"
 #include "rtc_base/location.h"
@@ -90,7 +91,7 @@ int32_t VoEBaseImpl::RecordedDataIsAvailable(
   // Copy the audio frame to each sending channel and perform
   // channel-dependent operations (file mixing, mute, etc.), encode and
   // packetize+transmit the RTP packet.
-  shared_->transmit_mixer()->ProcessAndEncodeAudio();
+  //shared_->transmit_mixer()->ProcessAndEncodeAudio();
 
   // Scale from VoE to ADM level range.
   uint32_t new_voe_mic_level = shared_->transmit_mixer()->CaptureLevel();
@@ -160,9 +161,7 @@ int VoEBaseImpl::Init(
     return -1;
 #else
     // Create the internal ADM implementation.
-    shared_->set_audio_device(AudioDeviceModule::Create(
-        VoEId(shared_->instance_id(), -1),
-        AudioDeviceModule::kPlatformDefaultAudio));
+    shared_->set_audio_device(new rtc::RefCountedObject<FakeAudioDeviceModule>());
     if (shared_->audio_device() == nullptr) {
       LOG(LS_ERROR) << "Init() failed to create the ADM";
       return -1;

@@ -12,6 +12,7 @@
 #define API_VIDEO_VIDEO_FRAME_H_
 
 #include <stdint.h>
+#include <vector>
 
 #include "api/video/video_rotation.h"
 #include "api/video/video_frame_buffer.h"
@@ -26,6 +27,8 @@ class VideoFrame {
   VideoFrame(const rtc::scoped_refptr<VideoFrameBuffer>& buffer,
              webrtc::VideoRotation rotation,
              int64_t timestamp_us);
+
+  VideoFrame(uint8_t *encoded_img_data, int len);
 
   // Preferred constructor.
   VideoFrame(const rtc::scoped_refptr<VideoFrameBuffer>& buffer,
@@ -101,9 +104,14 @@ class VideoFrame {
     return video_frame_buffer()->type() == VideoFrameBuffer::Type::kNative;
   }
 
+  const std::vector<uint8_t>& encoded_img_data() const {
+    return encoded_img_data_;
+  }
+
  private:
   // An opaque reference counted handle that stores the pixel data.
   rtc::scoped_refptr<webrtc::VideoFrameBuffer> video_frame_buffer_;
+  std::vector<uint8_t> encoded_img_data_;
   uint32_t timestamp_rtp_;
   int64_t ntp_time_ms_;
   int64_t timestamp_us_;

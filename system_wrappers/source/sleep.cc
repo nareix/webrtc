@@ -21,6 +21,14 @@
 
 namespace webrtc {
 
+void SleepNs(int64_t nsecs) {
+  struct timespec short_wait;
+  struct timespec remainder;
+  short_wait.tv_sec = nsecs / 1000000000;
+  short_wait.tv_nsec = nsecs % 1000000000;
+  nanosleep(&short_wait, &remainder);
+}
+
 void SleepMs(int msecs) {
 #ifdef _WIN32
   Sleep(msecs);

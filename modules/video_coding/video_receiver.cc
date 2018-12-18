@@ -18,6 +18,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/trace_event.h"
+#include "rtc_base/stringencode.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
@@ -314,6 +315,9 @@ int32_t VideoReceiver::RequestKeyFrame() {
 // Must be called from inside the receive side critical section.
 int32_t VideoReceiver::Decode(const VCMEncodedFrame& frame) {
   TRACE_EVENT0("webrtc", "VideoReceiver::Decode");
+  // 这里搞
+  //LOG(LS_VERBOSE) << "VideoReceiver::Decode " << frame.Length() << " " << rtc::hex_encode((const char*)frame.Buffer(), frame.Length());
+
   // Change decoder if payload type has changed
   VCMGenericDecoder* decoder =
       _codecDataBase.GetDecoder(frame, &_decodedFrameCallback);

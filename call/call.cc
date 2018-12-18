@@ -1326,8 +1326,8 @@ PacketReceiver::DeliveryStatus Call::DeliverRtp(MediaType media_type,
   ReadLockScoped read_lock(*receive_crit_);
   auto it = receive_rtp_config_.find(parsed_packet.Ssrc());
   if (it == receive_rtp_config_.end()) {
-    LOG(LS_ERROR) << "receive_rtp_config_ lookup failed for ssrc "
-                  << parsed_packet.Ssrc();
+    //LOG(LS_ERROR) << "receive_rtp_config_ lookup failed for ssrc "
+     //             << parsed_packet.Ssrc();
     // Destruction of the receive stream, including deregistering from the
     // RtpDemuxer, is not protected by the |receive_crit_| lock. But
     // deregistering in the |receive_rtp_config_| map is protected by that lock.

@@ -8,36 +8,138 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef MODULES_AUDIO_DEVICE_INCLUDE_FAKE_AUDIO_DEVICE_H_
-#define MODULES_AUDIO_DEVICE_INCLUDE_FAKE_AUDIO_DEVICE_H_
+#ifndef WEBRTC_MODULES_AUDIO_DEVICE_INCLUDE_FAKE_AUDIO_DEVICE_H_
+#define WEBRTC_MODULES_AUDIO_DEVICE_INCLUDE_FAKE_AUDIO_DEVICE_H_
 
+#include "rtc_base/logging.h"
 #include "modules/audio_device/include/audio_device.h"
+#include "rtc_base/criticalsection.h"
+#include "rtc_base/platform_thread.h"
+#include "modules/audio_device/audio_device_buffer.h"
+#include "system_wrappers/include/sleep.h"
 
 namespace webrtc {
 
+const uint32_t N_REC_SAMPLES_PER_SEC = 48000;
+const uint32_t N_PLAY_SAMPLES_PER_SEC = 48000;
+
+const uint32_t N_REC_CHANNELS = 1;   // default is mono recording
+const uint32_t N_PLAY_CHANNELS = 2;  // default is stereo playout
+const uint32_t N_DEVICE_CHANNELS = 64;
+
+const int kBufferSizeMs = 10;
+
+const uint32_t ENGINE_REC_BUF_SIZE_IN_SAMPLES =
+    N_REC_SAMPLES_PER_SEC * kBufferSizeMs / 1000;
+const uint32_t ENGINE_PLAY_BUF_SIZE_IN_SAMPLES =
+    N_PLAY_SAMPLES_PER_SEC * kBufferSizeMs / 1000;
+
+const int N_BLOCKS_IO = 2;
+const int N_BUFFERS_IN = 2;   // Must be at least N_BLOCKS_IO.
+const int N_BUFFERS_OUT = 3;  // Must be at least N_BLOCKS_IO.
+
+const uint32_t TIMER_PERIOD_MS = 2 * 10 * N_BLOCKS_IO * 1000000;
+
+const uint32_t REC_BUF_SIZE_IN_SAMPLES =
+    ENGINE_REC_BUF_SIZE_IN_SAMPLES * N_DEVICE_CHANNELS * N_BUFFERS_IN;
+const uint32_t PLAY_BUF_SIZE_IN_SAMPLES =
+    ENGINE_PLAY_BUF_SIZE_IN_SAMPLES * N_PLAY_CHANNELS * N_BUFFERS_OUT;
+
+const int kGetMicVolumeIntervalMs = 1000;
+
 class FakeAudioDeviceModule : public AudioDeviceModule {
  public:
-  FakeAudioDeviceModule() {}
+  FakeAudioDeviceModule() : 
+    recording_(false), playing_(false), _audioDeviceBuffer(),
+    capture_worker_thread_(nullptr), render_worker_thread_(nullptr)
+  {
+    _audioDeviceBuffer.SetRecordingSampleRate(N_REC_SAMPLES_PER_SEC);
+    _audioDeviceBuffer.SetPlayoutSampleRate(N_PLAY_SAMPLES_PER_SEC);
+    _audioDeviceBuffer.SetRecordingChannels(N_REC_CHANNELS);
+    _audioDeviceBuffer.SetPlayoutChannels(N_PLAY_CHANNELS);
+  }
   virtual ~FakeAudioDeviceModule() {}
-  virtual int32_t AddRef() const { return 0; }
-  virtual int32_t Release() const { return 0; }
 
  private:
+  rtc::CriticalSection _critSect;
+
+  bool recording_;
+  bool playing_;
+  AudioDeviceBuffer _audioDeviceBuffer;
+  std::unique_ptr<rtc::PlatformThread> capture_worker_thread_;
+  std::unique_ptr<rtc::PlatformThread> render_worker_thread_;
+  int64_t lastRenderTime_ = 0;
+
+  bool RenderWorkerThread() {
+    if (lastRenderTime_ == 0) {
+      lastRenderTime_ = rtc::TimeNanos();
+    }
+
+    int8_t playBuffer[4 * ENGINE_PLAY_BUF_SIZE_IN_SAMPLES];
+    // Ask for new PCM data to be played out using the AudioDeviceBuffer.
+    uint32_t nSamples = _audioDeviceBuffer.RequestPlayoutData(ENGINE_PLAY_BUF_SIZE_IN_SAMPLES);
+    nSamples = _audioDeviceBuffer.GetPlayoutData(playBuffer);
+
+    lastRenderTime_ += int64_t((double)nSamples / (double)N_REC_SAMPLES_PER_SEC * 1e9);
+
+    int64_t currentTime = rtc::TimeNanos();
+    //LOG(LS_VERBOSE) << "currentTime=" << double(currentTime)/1e6 << " ms";
+
+    int64_t delta = lastRenderTime_ - currentTime;
+    if (delta > 0) {
+      SleepNs(delta);
+    }
+    return true;
+  }
+  static bool RunRender(void* ptrThis) {
+    return static_cast<FakeAudioDeviceModule*>(ptrThis)->RenderWorkerThread();
+  }
+
+  bool CaptureWorkerThread() {
+    int16_t recordBuffer[ENGINE_REC_BUF_SIZE_IN_SAMPLES * N_REC_CHANNELS];
+    usleep(kBufferSizeMs * 1000);
+    _audioDeviceBuffer.SetRecordedBuffer((int8_t*)&recordBuffer, ENGINE_REC_BUF_SIZE_IN_SAMPLES);
+    _audioDeviceBuffer.DeliverRecordedData();
+    return true;
+  }
+  static bool RunCapture(void* ptrThis) {
+    return static_cast<FakeAudioDeviceModule*>(ptrThis)->CaptureWorkerThread();
+  }
+
   virtual int32_t RegisterAudioCallback(AudioTransport* audioCallback) {
-    return 0;
+    rtc::CritScope lock(&_critSect);
+    return _audioDeviceBuffer.RegisterAudioCallback(audioCallback);
   }
   virtual int32_t Init() { return 0; }
   virtual int32_t InitSpeaker() { return 0; }
   virtual int32_t SetPlayoutDevice(uint16_t index) { return 0; }
   virtual int32_t SetPlayoutDevice(WindowsDeviceType device) { return 0; }
   virtual int32_t SetStereoPlayout(bool enable) { return 0; }
-  virtual int32_t StopPlayout() { return 0; }
+  virtual int32_t StopPlayout() {
+    rtc::CritScope lock(&_critSect);
+    if (!playing_)
+      return 0;
+    render_worker_thread_->Stop();
+    render_worker_thread_.reset();
+    _audioDeviceBuffer.StopPlayout();
+    playing_ = false;
+    return 0;
+  }
   virtual int32_t InitMicrophone() { return 0; }
   virtual int32_t SetRecordingDevice(uint16_t index) { return 0; }
   virtual int32_t SetRecordingDevice(WindowsDeviceType device) { return 0; }
   virtual int32_t SetStereoRecording(bool enable) { return 0; }
   virtual int32_t SetAGC(bool enable) { return 0; }
-  virtual int32_t StopRecording() { return 0; }
+  virtual int32_t StopRecording() {
+    rtc::CritScope lock(&_critSect);
+    if (!recording_)
+      return 0;
+    capture_worker_thread_->Stop();
+    capture_worker_thread_.reset();
+    _audioDeviceBuffer.StopRecording();
+    recording_ = false;
+    return 0;
+  }
 
   // If the subclass doesn't override the ProcessThread implementation,
   // we'll fall back on an implementation that doesn't eat too much CPU.
@@ -73,12 +175,44 @@ class FakeAudioDeviceModule : public AudioDeviceModule {
   virtual int32_t InitPlayout() { return 0; }
   virtual bool PlayoutIsInitialized() const { return true; }
   virtual int32_t RecordingIsAvailable(bool* available) { return 0; }
-  virtual int32_t InitRecording() { return 0; }
+  virtual int32_t InitRecording() {
+    _audioDeviceBuffer.SetRecordingSampleRate(N_REC_SAMPLES_PER_SEC);
+    _audioDeviceBuffer.SetRecordingChannels(N_REC_CHANNELS);
+    return 0;
+  }
   virtual bool RecordingIsInitialized() const { return true; }
-  virtual int32_t StartPlayout() { return 0; }
-  virtual bool Playing() const { return false; }
-  virtual int32_t StartRecording() { return 0; }
-  virtual bool Recording() const { return false; }
+  virtual int32_t StartPlayout() {
+    rtc::CritScope lock(&_critSect);
+    if (playing_)
+      return 0;
+    render_worker_thread_.reset(
+        new rtc::PlatformThread(RunRender, this, "RenderWorkerThread"));
+    render_worker_thread_->Start();
+    render_worker_thread_->SetPriority(rtc::kRealtimePriority);
+    _audioDeviceBuffer.StartPlayout();
+    playing_ = true;
+    return 0; 
+  }
+  virtual bool Playing() const { 
+    rtc::CritScope lock(&_critSect);
+    return playing_;
+  }
+  virtual int32_t StartRecording() {
+    rtc::CritScope lock(&_critSect);
+    if (recording_)
+      return 0;
+    capture_worker_thread_.reset(
+        new rtc::PlatformThread(RunCapture, this, "CaptureWorkerThread"));
+    capture_worker_thread_->Start();
+    capture_worker_thread_->SetPriority(rtc::kRealtimePriority);
+    _audioDeviceBuffer.StartRecording();
+    recording_ = true;
+    return 0; 
+  }
+  virtual bool Recording() const {
+    rtc::CritScope lock(&_critSect);
+    return recording_;
+  }
   virtual bool AGC() const { return true; }
   virtual bool SpeakerIsInitialized() const { return true; }
   virtual bool MicrophoneIsInitialized() const { return true; }
@@ -150,4 +284,4 @@ class FakeAudioDeviceModule : public AudioDeviceModule {
 
 }  // namespace webrtc
 
-#endif  // MODULES_AUDIO_DEVICE_INCLUDE_FAKE_AUDIO_DEVICE_H_
+#endif  // WEBRTC_MODULES_AUDIO_DEVICE_INCLUDE_FAKE_AUDIO_DEVICE_H_

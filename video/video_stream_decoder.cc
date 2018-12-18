@@ -79,6 +79,7 @@ int32_t VideoStreamDecoder::FrameToRender(VideoFrame& video_frame,
                                           rtc::Optional<uint8_t> qp,
                                           VideoContentType content_type) {
   receive_stats_callback_->OnDecodedFrame(qp, content_type);
+  // 这里回调
   incoming_video_stream_->OnFrame(video_frame);
   return 0;
 }

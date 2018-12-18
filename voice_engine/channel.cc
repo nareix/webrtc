@@ -1398,6 +1398,7 @@ void Channel::ProcessAndEncodeAudio(const int16_t* audio_data,
   }
   RemixAndResample(audio_data, number_of_frames, number_of_channels,
                    sample_rate, &input_resampler_, audio_frame.get());
+  
   encoder_queue_->PostTask(std::unique_ptr<rtc::QueuedTask>(
       new ProcessAndEncodeAudioTask(std::move(audio_frame), this)));
 }

@@ -156,12 +156,14 @@ AudioDeviceGeneric::InitStatus AudioDeviceLinuxPulse::Init() {
     return InitStatus::OTHER_ERROR;
   }
 
+#if defined(USE_X11)
   // Get X display handle for typing detection
   _XDisplay = XOpenDisplay(NULL);
   if (!_XDisplay) {
     LOG(LS_WARNING)
         << "failed to open X display, typing detection will not work";
   }
+#endif
 
   // RECORDING
   _ptrThreadRec.reset(new rtc::PlatformThread(
@@ -213,10 +215,12 @@ int32_t AudioDeviceLinuxPulse::Terminate() {
     return -1;
   }
 
+#if defined(USE_X11)
   if (_XDisplay) {
     XCloseDisplay(_XDisplay);
     _XDisplay = NULL;
   }
+#endif
 
   _initialized = false;
   _outputDeviceIsSpecified = false;
@@ -2330,11 +2334,13 @@ bool AudioDeviceLinuxPulse::KeyPressed() const {
   unsigned int i = 0;
   char state = 0;
 
+#if defined(USE_X11)
   if (!_XDisplay)
     return false;
 
   // Check key map status
   XQueryKeymap(_XDisplay, szKey);
+#endif
 
   // A bit change in keymap means a key is pressed
   for (i = 0; i < sizeof(szKey); i++)
