@@ -1085,6 +1085,7 @@ bool WebRtcVideoChannel::AddSendStream(const StreamParams& sp) {
 
   webrtc::VideoSendStream::Config config(this);
   config.suspend_below_min_bitrate = video_config_.suspend_below_min_bitrate;
+  config.rawpkt = video_config_.rawpkt;
   config.periodic_alr_bandwidth_probing =
       video_config_.periodic_alr_bandwidth_probing;
   WebRtcVideoSendStream* stream = new WebRtcVideoSendStream(
@@ -1194,6 +1195,7 @@ bool WebRtcVideoChannel::AddRecvStream(const StreamParams& sp,
   webrtc::FlexfecReceiveStream::Config flexfec_config(this);
   ConfigureReceiverRtp(&config, &flexfec_config, sp);
 
+  config.rawpkt = video_config_.rawpkt;
   config.disable_prerenderer_smoothing =
       video_config_.disable_prerenderer_smoothing;
   config.sync_group = sp.sync_label;

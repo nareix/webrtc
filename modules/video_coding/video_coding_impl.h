@@ -149,7 +149,8 @@ class VideoReceiver : public Module {
                 EncodedImageCallback* pre_decode_image_callback,
                 VCMTiming* timing,
                 NackSender* nack_sender = nullptr,
-                KeyFrameRequestSender* keyframe_request_sender = nullptr);
+                KeyFrameRequestSender* keyframe_request_sender = nullptr,
+                bool rawpkt = false);
   ~VideoReceiver();
 
   int32_t RegisterReceiveCodec(const VideoCodec* receiveCodec,
@@ -230,6 +231,8 @@ class VideoReceiver : public Module {
   VCMProcessTimer _keyRequestTimer;
   QpParser qp_parser_;
   ThreadUnsafeOneTimeEvent first_frame_received_;
+
+  bool _rawpkt = false;
 };
 
 }  // namespace vcm

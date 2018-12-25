@@ -293,6 +293,9 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     bool dscp() { return media_config.enable_dscp; }
     void set_dscp(bool enable) { media_config.enable_dscp = enable; }
 
+    bool rawpkt() { return media_config.video.rawpkt; }
+    void set_rawpkt(bool enable) { media_config.video.rawpkt = enable; }
+
     // TODO(nisse): The corresponding flag in MediaConfig and
     // elsewhere should be renamed enable_cpu_adaptation.
     bool cpu_adaptation() {

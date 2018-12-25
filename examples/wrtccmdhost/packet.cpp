@@ -21,6 +21,17 @@ MediaPacket::MediaPacket(IN const AVStream& _avStream, IN const AVPacket* _pAvPa
         pAvPacket_ = const_cast<AVPacket*>(_pAvPacket);
 }
 
+MediaPacket::MediaPacket(
+        IN StreamType stream, IN CodecType codec, 
+        const std::vector<uint8_t>& extradata, const std::vector<uint8_t>& data
+) : stream_(stream), codec_(codec), extradata(extradata), data(data)
+{
+        pAvPacket_ = av_packet_alloc();
+        av_init_packet(pAvPacket_);
+        pAvPacket_->data = (uint8_t *)&data[0];
+        pAvPacket_->size = data.size();
+}
+
 MediaPacket::MediaPacket()
 {
         pAvPacket_ = av_packet_alloc();
@@ -171,6 +182,10 @@ void MediaPacket::SetKey()
 // MediaFrame
 //
 
+MediaFrame::MediaFrame(IN const std::string& rawpkt): rawpkt(rawpkt), stream_(STREAM_RAWPACKET)
+{
+}
+
 MediaFrame::MediaFrame(IN const AVFrame* _pAvFrame)
 {
         pAvFrame_ = const_cast<AVFrame*>(_pAvFrame);
@@ -222,7 +237,10 @@ MediaFrame::MediaFrame(IN int _nWidth, IN int _nHeight, IN AVPixelFormat _format
 
 MediaFrame::~MediaFrame()
 {
-        av_frame_free(&pAvFrame_);
+        if (pAvFrame_ != NULL) {
+                av_frame_free(&pAvFrame_);
+                pAvFrame_ = NULL;
+        }
 
         if (pExtraBuf_ != nullptr) {
                 av_free(pExtraBuf_);

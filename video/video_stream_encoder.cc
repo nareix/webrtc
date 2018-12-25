@@ -674,6 +674,10 @@ void VideoStreamEncoder::ConfigureQualityScaler() {
 }
 
 void VideoStreamEncoder::OnFrame(const VideoFrame& video_frame) {
+  if (video_frame.hasRawpkt) {
+    return;
+  }
+
   RTC_DCHECK_RUNS_SERIALIZED(&incoming_frame_race_checker_);
   VideoFrame incoming_frame = video_frame;
 

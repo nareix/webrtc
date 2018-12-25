@@ -204,6 +204,9 @@ class VideoReceiveStream {
     // available.
     bool disable_prerenderer_smoothing = false;
 
+    // Use rawpkt.
+    bool rawpkt = false;
+
     // Identifier for an A/V synchronization group. Empty string to disable.
     // TODO(pbos): Synchronize streams in a sync group, not just video streams
     // to one of the audio streams.

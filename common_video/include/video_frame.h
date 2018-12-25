@@ -19,6 +19,9 @@
 #include "common_types.h"  // NOLINT(build/include)
 #include "typedefs.h"  // NOLINT(build/include)
 
+
+#include "rtc_base/bytebuffer.h"
+
 namespace webrtc {
 
 // TODO(pbos): Rename EncodedFrame and reformat this class' members.
@@ -76,6 +79,80 @@ class EncodedImage {
     int64_t receive_start_ms = 0;
     int64_t receive_finish_ms = 0;
   } timing_;
+
+  void Marshall(rtc::ByteBufferWriter& b) const {
+    // img data
+    b.WriteUInt8(10);
+    b.WriteUInt32(_length);
+    b.WriteBytes((const char*)_buffer, _length);
+
+    // img info
+    {
+      rtc::ByteBufferWriter b(rtc::ByteBuffer::ByteOrder::ORDER_NETWORK);
+      b.WriteUInt32(_encodedWidth);
+      b.WriteUInt32(_encodedHeight);
+      b.WriteUInt32(_timeStamp);
+      b.WriteUInt64(ntp_time_ms_);
+      b.WriteUInt64(capture_time_ms_);
+      b.WriteUInt32(_frameType);
+      b.WriteUInt8(timing_.flags);
+      b.WriteUInt32(qp_);
+      b.WriteUInt32(timing_.encode_start_ms);
+      b.WriteUInt32(timing_.encode_finish_ms);
+      b.WriteUInt32(playout_delay_.min_ms);
+      b.WriteUInt32(playout_delay_.max_ms);
+      b.WriteUInt8(_completeFrame != 0);
+
+      b.WriteUInt8(11);
+      b.WriteUInt32(b.Length());
+      b.WriteBytes(b.Data(), b.Length());
+    }
+  }
+
+  bool Unmarshall(uint8_t type, rtc::ByteBufferReader& b) {
+    uint8_t v8;
+    uint32_t v32;
+
+    switch (type) {
+    case 10: // img data
+      _buffer = (uint8_t*)b.Data();
+      _length = b.Length();
+      _size = b.Length();
+      return true;
+
+    case 11: // img info
+      b.ReadUInt32(&_encodedWidth);
+      b.ReadUInt32(&_encodedHeight);
+      b.ReadUInt32(&_timeStamp);
+      b.ReadUInt64((uint64_t *)&ntp_time_ms_);
+      b.ReadUInt64((uint64_t *)&capture_time_ms_);
+      if (b.ReadUInt32(&v32)) {
+        _frameType = (webrtc::FrameType)v32;
+      }
+      b.ReadUInt8(&timing_.flags);
+      if (b.ReadUInt32(&v32)) {
+        qp_ = v32;
+      }
+      if (b.ReadUInt32(&v32)) {
+        timing_.encode_start_ms = v32;
+      }
+      if (b.ReadUInt32(&v32)) {
+        timing_.encode_finish_ms = v32;
+      }
+      if (b.ReadUInt32(&v32)) {
+        playout_delay_.min_ms = v32;
+      }
+      if (b.ReadUInt32(&v32)) {
+        playout_delay_.max_ms = v32;
+      }
+      if (b.ReadUInt8(&v8)) {
+        _completeFrame = v8 != 0;
+      }
+      return true;
+    }
+
+    return false;
+  }
 };
 
 }  // namespace webrtc

@@ -78,8 +78,10 @@ extern "C"
         } while(0)
 
 #define XLogFormat(level, levelstr, xl, fmt, arg...)                              \
-        if (xl) { \
-                LogFormat(level, levelstr, xl->reqid_.c_str(), fmt, ##arg); \
+        { \
+                const char *reqid = "";         \
+                if (xl) reqid = xl->reqid_.c_str(); \
+                LogFormat(level, levelstr, reqid, fmt, ##arg); \
         }
 
 #define XError(fmt, arg...) XLogFormat(2, "ERROR", xl_, fmt, ##arg)
@@ -174,7 +176,8 @@ namespace muxer
         {
                 STREAM_VIDEO = AVMEDIA_TYPE_VIDEO,
                 STREAM_AUDIO = AVMEDIA_TYPE_AUDIO,
-                STREAM_DATA = AVMEDIA_TYPE_DATA
+                STREAM_DATA = AVMEDIA_TYPE_DATA,
+                STREAM_RAWPACKET = 0x1653,
         } StreamType;
 
         typedef enum

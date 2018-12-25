@@ -72,6 +72,10 @@ int AvEncoder::Init(IN const std::shared_ptr<MediaFrame>& _pFrame)
         // set encoder parameters
         Preset(_pFrame);
 
+        if (useGlobalHeader) {
+                pAvEncoderContext_->flags |= CODEC_FLAG_GLOBAL_HEADER;
+        }
+
         // open encoder
         if (avcodec_open2(pAvEncoderContext_, pAvCodec, nullptr) < 0) {
                 XError("could not open encoder");
@@ -82,8 +86,15 @@ int AvEncoder::Init(IN const std::shared_ptr<MediaFrame>& _pFrame)
                 bIsEncoderAvailable_ = true;
         }
 
+        XInfo("encoder extradata_size=%d", pAvEncoderContext_->extradata_size);
+
         return 0;
 }
+
+std::vector<uint8_t> AvEncoder::Extradata() {
+        return std::vector<uint8_t>(pAvEncoderContext_->extradata, pAvEncoderContext_->extradata+pAvEncoderContext_->extradata_size);
+}
+
 
 int AvEncoder::Preset(IN const std::shared_ptr<MediaFrame>& _pFrame)
 {

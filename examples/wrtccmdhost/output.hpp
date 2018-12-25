@@ -14,6 +14,7 @@ namespace muxer
                 ~AvEncoder();
                 int Encode(IN std::shared_ptr<MediaFrame>& pFrame, IN EncoderHandlerType& callback);
                 void Bitrate(IN int nBitrate);
+                std::vector<uint8_t> Extradata();
                 int gop_ = 50;
                 int nMinRate_ = 0;
                 int nMaxRate_ = 0;
@@ -36,6 +37,8 @@ namespace muxer
                 std::shared_ptr<XLogger> xl_;
 
                 int nBitrate_ = 0;
+        public:
+                bool useGlobalHeader = false;
         };
 
         class AvSender

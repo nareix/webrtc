@@ -90,7 +90,6 @@ message AddTracksReq {
 }
 
 message Empty {
-
 }
 
 service Rpc {

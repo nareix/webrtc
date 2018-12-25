@@ -12,6 +12,8 @@ namespace muxer
                 ~MediaPacket();
                 MediaPacket();
                 MediaPacket(const MediaPacket&) = delete; // no copy for risk concern
+                MediaPacket(IN StreamType stream, IN CodecType codec, 
+                        const std::vector<uint8_t>& extradata, const std::vector<uint8_t>& data);
 
                 // get raw AV structs
                 AVPacket* AvPacket() const;
@@ -62,12 +64,17 @@ namespace muxer
                 // video specific
                 int nWidth_ = -1, nHeight_ = -1;
                 int nSampleRate_ = -1, nChannels_ = -1;
+
+        public:
+                std::vector<uint8_t> extradata = std::vector<uint8_t>();
+                std::vector<uint8_t> data = std::vector<uint8_t>();
         };
 
         class MediaFrame
         {
         public:
                 MediaFrame(IN const AVFrame* pFrame);
+                MediaFrame(IN const std::string& rawpkt);
                 MediaFrame();
                 MediaFrame(IN int nSamples, IN int nChannels, IN AVSampleFormat format, IN bool bSilence = false);
                 MediaFrame(IN int nWidth, IN int nHeight, IN AVPixelFormat format, IN int nColor = -1);
@@ -90,8 +97,12 @@ namespace muxer
                 void Y(IN int);
                 int Z() const;
                 void Z(IN int);
+
+        public:
+                std::string rawpkt;
+
         private:
-                AVFrame* pAvFrame_;
+                AVFrame* pAvFrame_ = NULL;
 
                 StreamType stream_;
                 CodecType codec_;
@@ -100,9 +111,6 @@ namespace muxer
 
                 int nX_ = 0, nY_ = 0, nZ_ = 0;
 
-        public:
-                bool israw = false;
-                std::vector<uint8_t> raw;
         };
 }
 

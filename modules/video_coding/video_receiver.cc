@@ -29,7 +29,8 @@ VideoReceiver::VideoReceiver(Clock* clock,
                              EncodedImageCallback* pre_decode_image_callback,
                              VCMTiming* timing,
                              NackSender* nack_sender,
-                             KeyFrameRequestSender* keyframe_request_sender)
+                             KeyFrameRequestSender* keyframe_request_sender,
+                             bool rawpkt)
     : clock_(clock),
       _timing(timing),
       _receiver(_timing,
@@ -49,7 +50,8 @@ VideoReceiver::VideoReceiver(Clock* clock,
       pre_decode_image_callback_(pre_decode_image_callback),
       _receiveStatsTimer(1000, clock_),
       _retransmissionTimer(10, clock_),
-      _keyRequestTimer(500, clock_) {}
+      _keyRequestTimer(500, clock_),
+      _rawpkt(rawpkt) {}
 
 VideoReceiver::~VideoReceiver() {}
 
@@ -315,8 +317,6 @@ int32_t VideoReceiver::RequestKeyFrame() {
 // Must be called from inside the receive side critical section.
 int32_t VideoReceiver::Decode(const VCMEncodedFrame& frame) {
   TRACE_EVENT0("webrtc", "VideoReceiver::Decode");
-  // 这里搞
-  //LOG(LS_VERBOSE) << "VideoReceiver::Decode " << frame.Length() << " " << rtc::hex_encode((const char*)frame.Buffer(), frame.Length());
 
   // Change decoder if payload type has changed
   VCMGenericDecoder* decoder =
@@ -324,6 +324,21 @@ int32_t VideoReceiver::Decode(const VCMEncodedFrame& frame) {
   if (decoder == nullptr) {
     return VCM_NO_CODEC_REGISTERED;
   }
+
+  if (_rawpkt) {
+    LOG(LS_VERBOSE) << "VideoReceiver::Decode " << frame.Length() << " " << rtc::hex_encode((const char*)frame.Buffer(), frame.Length());
+
+    rtc::ByteBufferWriter b;
+    frame.Marshall(b);
+    auto vframe = webrtc::VideoFrame(std::string(b.Data(), b.Length()));
+    vframe.set_timestamp(frame.TimeStamp());
+
+    auto now_ms = clock_->TimeInMilliseconds();
+    int32_t ret = decoder->Decode(frame, now_ms, true);
+    _decodedFrameCallback.Decoded(vframe, now_ms);
+    return ret;
+  }
+
   return decoder->Decode(frame, clock_->TimeInMilliseconds());
 }
 

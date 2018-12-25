@@ -65,6 +65,8 @@ public:
     void handleNewUrlStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleConnAddStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleConnStats(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleNewRawStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleRawStreamSendPacket(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleSinkStats(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleReq(rtc::scoped_refptr<MsgPump::Request> req);
     void handleMsg(const std::string& type, const Json::Value& body);

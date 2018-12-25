@@ -1,4 +1,8 @@
+
 #include "wrtcconn.hpp"
+#include "input.hpp"
+#include "output.hpp"
+
 #include "rtc_base/callback.h"
 #include "media/base/videobroadcaster.h"
 #include "pc/videotracksource.h"
@@ -8,10 +12,78 @@
 #include "rtc_base/timeutils.h"
 #include "pc/videotrack.h"
 #include "pc/mediastream.h"
+#include "rtc_base/bytebuffer.h"
+#include "rtc_base/base64.h"
+
+static bool streamOnFrameConvAAC = true;
+
+class RawpktAudio {
+public:
+    RawpktAudio() {}
+
+    void Marshall(rtc::ByteBufferWriter& b) {
+        if (audiodata) {
+            b.WriteUInt8(30);
+            b.WriteUInt32(4*4);
+            b.WriteUInt32(samplebits);
+            b.WriteUInt32(samplerate);
+            b.WriteUInt32(channels);
+            b.WriteUInt32(samplenr);
+            b.WriteUInt8(31);
+            b.WriteUInt32(audiolen);
+            b.WriteBytes((const char *)audiodata, audiolen);
+        }
+        if (extradata.size() > 0) {
+            b.WriteUInt8(32);
+            b.WriteUInt32(extradata.size());
+            b.WriteBytes((const char *)&extradata[0], extradata.size());
+        }
+        if (data.size() > 0) {
+            b.WriteUInt8(33);
+            b.WriteUInt32(data.size());
+            b.WriteBytes((const char *)&data[0], data.size());
+        }
+    }
+
+    bool Unmarshall(uint8_t type, rtc::ByteBufferReader& b) {
+        switch (type) {
+        case 30:  // audio info
+            b.ReadUInt32(&samplebits);
+            b.ReadUInt32(&samplerate);
+            b.ReadUInt32(&channels);
+            b.ReadUInt32(&samplenr);
+            return true;
+        case 31:  // audio data
+            audiodata = b.Data();
+            audiolen = b.Length();
+            return true;
+        case 32: // encoded audio extradata
+            extradata = std::vector<uint8_t>(b.Data(), b.Data()+b.Length());
+            return true;
+        case 33: // encoded audio data
+            data = std::vector<uint8_t>(b.Data(), b.Data()+b.Length());
+            return true;
+        }
+        return false;
+    }
+
+    uint32_t samplebits = 0;
+    uint32_t samplerate = 0;
+    uint32_t channels = 0;
+    uint32_t samplenr = 0;
+    const void *audiodata = nullptr;
+    size_t audiolen = 0;
+
+    std::vector<uint8_t> data = std::vector<uint8_t>();
+    std::vector<uint8_t> extradata = std::vector<uint8_t>();
+};
+
 
 class WRTCStream: public Stream, rtc::VideoSinkInterface<webrtc::VideoFrame>, webrtc::AudioTrackSinkInterface {
 public:
-    WRTCStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream, const std::string& id) : id_(id) {
+    WRTCStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream, const std::string& id, bool rawpkt) 
+        : id_(id), rawpkt(rawpkt) 
+    {
         webrtc::VideoTrackVector vtracks = stream->GetVideoTracks();
         webrtc::AudioTrackVector atracks = stream->GetAudioTracks();
         if (!vtracks.empty()) {
@@ -32,6 +104,13 @@ public:
     void OnFrame(const webrtc::VideoFrame& rtcframe) {
         auto now = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::ratio<1,1>> elapsed_d(now - start_ts_);
+
+        if (rawpkt) {
+            DebugR("OnFrameVideoRawpkt %zu", id_.c_str(), rtcframe.rawpkt.size());
+            std::shared_ptr<muxer::MediaFrame> frame = std::make_shared<muxer::MediaFrame>(rtcframe.rawpkt);
+            SendFrame(frame);
+            return;
+        }
 
         DebugR("OnFrameVideo ts=%lf", id_.c_str(), elapsed_d.count());
 
@@ -79,7 +158,7 @@ public:
         SendFrame(frame);
     }
 
-    void OnData(const void* audio_data,
+    std::shared_ptr<muxer::MediaFrame> getAudioFrame(const void* audio_data,
         int bits_per_sample,
         int sample_rate,
         size_t number_of_channels,
@@ -95,10 +174,6 @@ public:
         audio_ts_ += inc;
 
         std::chrono::duration<double, std::ratio<1,1>> elapsed2_d(now - start_ts_);
-
-        DebugR("OnFrameAudio %zu %d %d %zu ts=%lf ts2=%lf",
-            id_.c_str(), number_of_frames, sample_rate, bits_per_sample, number_of_channels,
-            elapsed_d.count(), elapsed2_d.count());
 
         std::shared_ptr<muxer::MediaFrame> frame = std::make_shared<muxer::MediaFrame>();
 
@@ -118,19 +193,97 @@ public:
         av_frame_get_buffer(frame->AvFrame(), 0);
 
         memcpy(frame->AvFrame()->data[0], audio_data, bits_per_sample/8*number_of_frames*number_of_channels);
-        
-        SendFrame(frame);
 
+        return frame;        
+    }
+
+    void OnData(const void* audio_data,
+        int bits_per_sample,
+        int sample_rate,
+        size_t number_of_channels,
+        size_t number_of_frames) 
+    {
+        if (rawpkt) {
+            if (streamOnFrameConvAAC) {
+                if (encoder == nullptr) {
+                    encoder = std::make_shared<muxer::AvEncoder>(nullptr);
+                    encoder->useGlobalHeader = true;
+                    resampler = std::make_shared<muxer::AudioResampler>(nullptr);
+                }
+
+                auto encodeCb = [&](IN const std::shared_ptr<muxer::MediaPacket>& pkt) -> int {
+                    rtc::ByteBufferWriter b;
+                    RawpktAudio audio;
+
+                    DebugR("OnFrameAudioRawpktEncoded", id_.c_str());
+
+                    b.WriteUInt8(1);
+                    b.WriteUInt32(1);
+                    b.WriteUInt8(3); // encoded audio
+                    audio.data = std::vector<uint8_t>(pkt->Data(), pkt->Data()+pkt->Size());
+                    audio.extradata = encoder->Extradata();
+
+                    audio.Marshall(b);
+                    auto frame = std::make_shared<muxer::MediaFrame>(std::string(b.Data(), b.Length()));
+                    SendFrame(frame);
+
+                    return 0;
+                };
+
+                auto resampleCb = [&](const std::shared_ptr<muxer::MediaFrame>& out) -> int {
+                    std::shared_ptr<muxer::MediaFrame> frame = out;
+                    return encoder->Encode(frame, encodeCb);
+                };
+
+                auto frame = getAudioFrame(audio_data, bits_per_sample, sample_rate, number_of_channels, number_of_frames);
+                resampler->Resample(frame, resampleCb);
+            } else {
+                DebugR("OnFrameAudioRawpkt", id_.c_str());
+
+                rtc::ByteBufferWriter b;
+                RawpktAudio audio;
+
+                b.WriteUInt8(1);
+                b.WriteUInt32(1);
+                b.WriteUInt8(2); // raw audio
+                audio.audiodata = audio_data;
+                audio.audiolen = bits_per_sample/8*number_of_frames*number_of_channels;
+                audio.samplebits = bits_per_sample;
+                audio.samplenr = number_of_frames;
+                audio.samplerate = sample_rate;
+                audio.channels = number_of_channels;
+
+                audio.Marshall(b);
+                auto frame = std::make_shared<muxer::MediaFrame>(std::string(b.Data(), b.Length()));
+                SendFrame(frame);
+            }
+
+            return;
+        }
+
+        auto frame = getAudioFrame(audio_data, bits_per_sample, sample_rate, number_of_channels, number_of_frames);
+
+        DebugR("OnFrameAudio %zu %d %d %zu",
+            id_.c_str(), number_of_frames, sample_rate, bits_per_sample, number_of_channels
+            );
+
+        SendFrame(frame);
         DebugPCM("/tmp/rtc.orig.s16", audio_data, bits_per_sample/8*number_of_frames*number_of_channels);
     }
 
     std::chrono::high_resolution_clock::time_point start_ts_, audio_ts_;
     std::string id_;
+    std::shared_ptr<muxer::AvEncoder> encoder = nullptr;
+    std::shared_ptr<muxer::AudioResampler> resampler = nullptr;
+    bool rawpkt = false;
 };
 
 class PeerConnectionObserver: public webrtc::PeerConnectionObserver {
 public:
-    PeerConnectionObserver(const std::string& id, WRTCConn::ConnObserver* conn_observer) : id_(id), conn_observer_(conn_observer) {}
+    PeerConnectionObserver(
+        const std::string& id, WRTCConn::ConnObserver* conn_observer,
+        webrtc::PeerConnectionInterface::RTCConfiguration rtcconf
+    ) : id_(id), conn_observer_(conn_observer), rtcconf(rtcconf) {}
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
         //Info("OnSignalingChange");
     }
@@ -139,7 +292,7 @@ public:
         webrtc::AudioTrackVector atracks = stream->GetAudioTracks();
         InfoR("OnAddStream vtracks=%lu atracks=%lu id=%s", id_.c_str(), vtracks.size(), atracks.size(), stream->label().c_str());
 
-        conn_observer_->OnAddStream(id_, stream->label(), new WRTCStream(stream, stream->label()));
+        conn_observer_->OnAddStream(id_, stream->label(), new WRTCStream(stream, stream->label(), rtcconf.rawpkt()));
     }
     void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver, 
             const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>& streams) 
@@ -166,6 +319,7 @@ public:
     virtual ~PeerConnectionObserver() {}
     std::string id_;
     WRTCConn::ConnObserver* conn_observer_;
+    webrtc::PeerConnectionInterface::RTCConfiguration rtcconf;
 };
 
 std::string WRTCConn::ID() {
@@ -180,7 +334,7 @@ WRTCConn::WRTCConn(
 ) {
     id_ = newReqId();
     pc_factory_ = pc_factory;
-    pc_ = pc_factory->CreatePeerConnection(rtcconf, nullptr, nullptr, nullptr, new PeerConnectionObserver(id_, conn_observer));
+    pc_ = pc_factory->CreatePeerConnection(rtcconf, nullptr, nullptr, nullptr, new PeerConnectionObserver(id_, conn_observer, rtcconf));
     signal_thread_ = signal_thread;
 }
 
@@ -396,8 +550,6 @@ public:
     std::vector<webrtc::AudioTrackSinkInterface*> sinks_;
 };
 
-static uint8_t inc;
-
 class AVBroadcasterStreamSink: public SinkObserver {
 public:
     AVBroadcasterStreamSink(rtc::VideoBroadcaster *vsrc, AudioBroadcaster* asrc) : vsrc_(vsrc), asrc_(asrc), audiobuf_() {}
@@ -426,9 +578,7 @@ public:
 
             webrtc::VideoFrame vframe = webrtc::VideoFrame(buffer, webrtc::kVideoRotation_0,
                                                 0 / rtc::kNumNanosecsPerMicrosec);
-            //vframe = webrtc::VideoFrame(&inc, sizeof(inc));
             vsrc_->OnFrame(vframe);
-            inc++;
         } else if (frame->Stream() == muxer::STREAM_AUDIO) {
             Verbose("AVBroadcasterOnFrameAudio");
             
@@ -458,12 +608,80 @@ public:
                 asrc_->OnData(&audiobuf_[0], bits_per_sample, avframe->sample_rate, avframe->channels, samples10ms);
                 //Fatal("planar format not supported");
             }
+        } else if (frame->Stream() == muxer::STREAM_RAWPACKET) {
+            rtc::ByteBufferReader b(
+                frame->rawpkt.c_str(), frame->rawpkt.size(),
+                rtc::ByteBuffer::ByteOrder::ORDER_NETWORK
+            );
+
+            uint8_t type;
+            uint32_t size;
+            uint8_t pkttype = 0;
+            RawpktAudio audio;
+
+            for (;;) {
+                if (!b.ReadUInt8(&type)) {
+                    break;
+                }
+                if (!b.ReadUInt32(&size)) {
+                    break;
+                }
+                rtc::ByteBufferReader b2(b.Data(), size, b.Order());
+                if (type == 1) {
+                    b2.ReadUInt8(&pkttype);
+                } else if (audio.Unmarshall(type, b2)) {
+                    // audio
+                }
+                if (!b.Consume(size)) {
+                    break;
+                }
+            }
+
+            auto resampleCb = [&](const std::shared_ptr<muxer::MediaFrame>& out) {
+                RawpktAudio audio;
+                audio.audiodata = out->AvFrame()->data[0];
+                audio.samplebits = av_get_bytes_per_sample((AVSampleFormat)out->AvFrame()->format)*8;
+                audio.samplenr = out->AvFrame()->nb_samples;
+                audio.channels = out->AvFrame()->channels;
+                audio.samplerate = out->AvFrame()->sample_rate;
+                Verbose("AVBroadcasterOnFrameAudioRawpktDecoded %d %d %d %d", 
+                    audio.samplebits, audio.samplerate, audio.channels, audio.samplenr);
+                asrc_->OnData(audio.audiodata, audio.samplebits, audio.samplerate, audio.channels, audio.samplenr);
+            };
+
+            auto decodeCb = [&](const std::shared_ptr<muxer::MediaFrame>& frame) -> int {
+                resampler->Resample(frame, resampleCb);
+                return 0;
+            };
+
+            switch (pkttype) {
+            case 1: // video
+                Verbose("AVBroadcasterOnFrameViodeoRawpkt");
+                vsrc_->OnFrame(webrtc::VideoFrame(frame->rawpkt));
+                break;
+            case 2: // raw audio
+                Verbose("AVBroadcasterOnFrameAudioRawpkt %d %d %d %d", 
+                    audio.samplebits, audio.samplerate, audio.channels, audio.samplenr);
+                asrc_->OnData(audio.audiodata, audio.samplebits, audio.samplerate, audio.channels, audio.samplenr);
+                break;
+            case 3: // encoded audio
+                if (decoder == nullptr) {
+                    decoder = std::make_shared<muxer::AvDecoder>(nullptr);
+                    resampler = std::make_shared<muxer::AudioResampler>(nullptr);
+                    resampler->frameSize = muxer::AudioResampler::SAMPLE_RATE/100;
+                }
+                auto pkt = std::make_unique<muxer::MediaPacket>(muxer::STREAM_AUDIO, muxer::CODEC_AAC, audio.extradata, audio.data);
+                decoder->Decode(pkt, decodeCb);
+                break;
+            }
         }
     }
 
     rtc::VideoBroadcaster* vsrc_;
     AudioBroadcaster* asrc_;
     std::vector<uint8_t> audiobuf_;
+    std::shared_ptr<muxer::AvDecoder> decoder = nullptr;
+    std::shared_ptr<muxer::AudioResampler> resampler = nullptr;
 };
 
 bool WRTCConn::AddStream(SinkAddRemover* stream, std::vector<rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>> &tracks) {

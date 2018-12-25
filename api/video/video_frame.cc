@@ -24,9 +24,14 @@ VideoFrame::VideoFrame(const rtc::scoped_refptr<VideoFrameBuffer>& buffer,
       timestamp_us_(timestamp_us),
       rotation_(rotation) {}
 
-VideoFrame::VideoFrame(uint8_t *encoded_img_data, int len): video_frame_buffer_(nullptr) {
-  encoded_img_data_.resize(len);
-  memcpy(&encoded_img_data_[0], encoded_img_data, len);
+VideoFrame::VideoFrame(const std::string& rawpkt): 
+  rawpkt(rawpkt), hasRawpkt(true), video_frame_buffer_(nullptr),
+  timestamp_rtp_(0),
+  ntp_time_ms_(0),
+  timestamp_us_(0),
+  rotation_(kVideoRotation_0) 
+{
+  
 }
 
 VideoFrame::VideoFrame(const rtc::scoped_refptr<VideoFrameBuffer>& buffer,
@@ -49,11 +54,11 @@ VideoFrame& VideoFrame::operator=(const VideoFrame&) = default;
 VideoFrame& VideoFrame::operator=(VideoFrame&&) = default;
 
 int VideoFrame::width() const {
-  return video_frame_buffer_ ? video_frame_buffer_->width() : 0;
+  return video_frame_buffer_ ? video_frame_buffer_->width() : 1;
 }
 
 int VideoFrame::height() const {
-  return video_frame_buffer_ ? video_frame_buffer_->height() : 0;
+  return video_frame_buffer_ ? video_frame_buffer_->height() : 1;
 }
 
 uint32_t VideoFrame::size() const {

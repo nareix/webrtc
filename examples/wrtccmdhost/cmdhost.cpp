@@ -3,6 +3,8 @@
 #include "output.hpp"
 #include <stdlib.h>
 
+#include "rtc_base/base64.h"
+
 const std::string kId = "id";
 const std::string kStreamId = "stream_id";
 const std::string kCode = "code";
@@ -39,6 +41,9 @@ const std::string mtNewCanvasStream = "new-canvas-stream";
 const std::string mtNewUrlStream = "new-url-stream";
 const std::string mtConnAddStream = "conn-add-stream";
 const std::string mtConnStats = "conn-stats";
+const std::string mtNewRawStream = "new-raw-stream";
+const std::string mtSinkRawpkt = "on-sink-rawpkt";
+const std::string mtRawStreamSendPacket = "raw-stream-send-packet";
 const std::string mtSinkStats = "sink-stats";
 
 static void parseOfferAnswerOpt(const Json::Value& v, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions& opt) {
@@ -137,6 +142,10 @@ void CmdHost::handleNewConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneOb
     webrtc::PeerConnectionInterface::RTCConfiguration rtcconf = {};
 
     auto ice_servers = req["ice_servers"];
+
+    if (jsonAsBool(req["rawpkt"])) {
+        rtcconf.set_rawpkt(true);
+    }
 
     if (ice_servers.isArray()) {
         webrtc::PeerConnectionInterface::IceServer icesrv = {};
@@ -525,9 +534,39 @@ void CmdHost::handleLibmuxerSetInputsOpt(const Json::Value& req, rtc::scoped_ref
     observer->OnSuccess(res);
 }
 
+class RawpktSink: public SinkObserver {
+public:
+    RawpktSink(CmdHost *h, const std::string sinkid): h(h), sinkid(sinkid) {
+    }
+
+    void OnFrame(const std::shared_ptr<muxer::MediaFrame>& frame) {
+        Json::Value res;
+        res[kId] = sinkid;
+        res["rawpkt"] = rtc::Base64::Encode(frame->rawpkt);
+        h->writeMessage(mtSinkRawpkt, res);
+    }
+
+private:
+    CmdHost *h;
+    std::string sinkid;
+};
+
 void CmdHost::handleStreamAddSink(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
     auto stream = checkStream(jsonAsString(req[kId]), observer);
     if (stream == NULL) {
+        return;
+    }
+
+    auto sinkid = newReqId();
+
+    auto raw = jsonAsBool(req["raw"]);
+    if (raw) {
+        auto sink = new RawpktSink(this, sinkid);
+        stream->AddSink(sinkid, sink);
+
+        Json::Value res;
+        res[kId] = sinkid;
+        observer->OnSuccess(res);
         return;
     }
 
@@ -537,7 +576,6 @@ void CmdHost::handleStreamAddSink(const Json::Value& req, rtc::scoped_refptr<Cmd
         return;
     }
 
-    auto sinkid = newReqId();
     auto reqid = jsonAsString(req["reqid"]);
     if (reqid == "") {
         reqid = sinkid;
@@ -801,6 +839,30 @@ void CmdHost::handleConnStats(const Json::Value& req, rtc::scoped_refptr<CmdDone
     conn->GetStats(new ConnGetStatsObserver(observer));
 }
 
+void CmdHost::handleNewRawStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto stream_id = newReqId();
+    auto stream = new Stream();
+    {
+        std::lock_guard<std::mutex> lock(streams_map_lock_);
+        streams_map_[stream_id] = stream;
+    }
+    Json::Value res;
+    res[kId] = stream_id;
+    observer->OnSuccess(res);    
+}
+
+void CmdHost::handleRawStreamSendPacket(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto stream = checkStream(jsonAsString(req[kId]), observer);
+    if (stream == NULL) {
+        return;
+    }
+
+    auto rawpkt = rtc::Base64::Decode(jsonAsString(req["rawpkt"]), rtc::Base64::DecodeOption::DO_LAX);
+    stream->SendFrame(std::make_shared<muxer::MediaFrame>(rawpkt));
+
+    observer->OnSuccess();
+}
+
 void CmdHost::handleSinkStats(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
     auto stream = checkStream(jsonAsString(req[kId]), observer);
     if (stream == NULL) {
@@ -879,6 +941,10 @@ void CmdHost::handleReq(rtc::scoped_refptr<MsgPump::Request> req) {
         handleNewUrlStream(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));       
     } else if (type == mtConnStats) {
         handleConnStats(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
+    } else if (type == mtNewRawStream) {
+        handleNewRawStream(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
+    } else if (type == mtRawStreamSendPacket) {
+        handleRawStreamSendPacket(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtSinkStats) {
         handleSinkStats(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));        
     }

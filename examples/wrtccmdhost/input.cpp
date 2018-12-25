@@ -156,6 +156,12 @@ int AvDecoder::Init(IN const std::unique_ptr<MediaPacket>& _pPacket)
                         }
                 }
 
+                if (_pPacket->extradata.size() > 0) {
+                        pAvDecoderContext_->extradata = (uint8_t *)av_mallocz(2 + AV_INPUT_BUFFER_PADDING_SIZE);
+                        pAvDecoderContext_->extradata_size = _pPacket->extradata.size();
+                        memcpy(pAvDecoderContext_->extradata, &_pPacket->extradata[0], _pPacket->extradata.size());
+                }
+
                 // open it
                 if (avcodec_open2(pAvDecoderContext_, pAvCodec, nullptr) < 0) {
                         XError("could not open decoder");
