@@ -146,6 +146,9 @@ void CmdHost::handleNewConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneOb
     if (jsonAsBool(req["rawpkt"])) {
         rtcconf.set_rawpkt(true);
     }
+    if (jsonAsBool(req["dump_rawpkt"])) {
+        rtcconf.set_dump_rawpkt(true);
+    }
 
     if (ice_servers.isArray()) {
         webrtc::PeerConnectionInterface::IceServer icesrv = {};

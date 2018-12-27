@@ -14,12 +14,21 @@
 #include "pc/mediastream.h"
 #include "rtc_base/bytebuffer.h"
 #include "rtc_base/base64.h"
+#include "rtc_base/stringencode.h"
 
 static bool streamOnFrameConvAAC = true;
 
 class RawpktAudio {
 public:
     RawpktAudio() {}
+
+    RawpktAudio(AVFrame *f) {
+        audiodata = f->data[0];
+        samplebits = av_get_bytes_per_sample((AVSampleFormat)f->format)*8;
+        samplenr = f->nb_samples;
+        channels = f->channels;
+        samplerate = f->sample_rate;
+    }
 
     void Marshall(rtc::ByteBufferWriter& b) {
         if (audiodata) {
@@ -213,13 +222,14 @@ public:
 
                 auto encodeCb = [&](IN const std::shared_ptr<muxer::MediaPacket>& pkt) -> int {
                     rtc::ByteBufferWriter b;
-                    RawpktAudio audio;
 
                     DebugR("OnFrameAudioRawpktEncoded", id_.c_str());
 
                     b.WriteUInt8(1);
                     b.WriteUInt32(1);
                     b.WriteUInt8(3); // encoded audio
+
+                    RawpktAudio audio;
                     audio.data = std::vector<uint8_t>(pkt->Data(), pkt->Data()+pkt->Size());
                     audio.extradata = encoder->Extradata();
 
@@ -336,6 +346,7 @@ WRTCConn::WRTCConn(
     pc_factory_ = pc_factory;
     pc_ = pc_factory->CreatePeerConnection(rtcconf, nullptr, nullptr, nullptr, new PeerConnectionObserver(id_, conn_observer, rtcconf));
     signal_thread_ = signal_thread;
+    rtcconf = rtcconf;
 }
 
 class SetLocalDescObserver: public webrtc::SetSessionDescriptionObserver {
@@ -552,7 +563,7 @@ public:
 
 class AVBroadcasterStreamSink: public SinkObserver {
 public:
-    AVBroadcasterStreamSink(rtc::VideoBroadcaster *vsrc, AudioBroadcaster* asrc) : vsrc_(vsrc), asrc_(asrc), audiobuf_() {}
+    AVBroadcasterStreamSink(rtc::VideoBroadcaster *vsrc, AudioBroadcaster* asrc, bool dumpRawpkt) : vsrc_(vsrc), asrc_(asrc), audiobuf_() {}
 
     void OnFrame(const std::shared_ptr<muxer::MediaFrame>& frame) {
         AVFrame* avframe = frame->AvFrame();
@@ -582,31 +593,9 @@ public:
         } else if (frame->Stream() == muxer::STREAM_AUDIO) {
             Verbose("AVBroadcasterOnFrameAudio");
             
-            if (!av_sample_fmt_is_planar((AVSampleFormat)avframe->format)) {
-                auto bytes_per_sample = av_get_bytes_per_sample((AVSampleFormat)avframe->format);
-                auto bits_per_sample = bytes_per_sample*8;
-
-                auto oldsize = audiobuf_.size();
-                audiobuf_.resize(oldsize + avframe->linesize[0]);
-                std::copy(avframe->data[0], avframe->data[0]+avframe->linesize[0], &audiobuf_[oldsize]);
-
-                auto samples10ms = size_t(avframe->sample_rate*0.01);
-                auto size10ms = samples10ms*bytes_per_sample;
-                size_t pos = 0;
-                while (pos+size10ms <= audiobuf_.size()) {
-                    asrc_->OnData(&audiobuf_[pos], bits_per_sample, avframe->sample_rate, avframe->channels, samples10ms);
-                    pos += size10ms;
-                }
-                std::copy(&audiobuf_[pos], &audiobuf_[audiobuf_.size()], &audiobuf_[0]);
-                audiobuf_.resize(audiobuf_.size()-pos);
-            } else {
-                auto bytes_per_sample = av_get_bytes_per_sample((AVSampleFormat)avframe->format);
-                auto bits_per_sample = bytes_per_sample*8;
-                auto samples10ms = size_t(avframe->sample_rate*0.01);
-                auto size10ms = samples10ms*bytes_per_sample;
-                audiobuf_.resize(size10ms);
-                asrc_->OnData(&audiobuf_[0], bits_per_sample, avframe->sample_rate, avframe->channels, samples10ms);
-                //Fatal("planar format not supported");
+            if (dumpRawpkt) {
+                //rtc::ByteBufferWriter bw(rtc::ByteBuffer::ByteOrder::ORDER_NETWORK);
+                //LOG(LS_VERBOSE) << "DumpRawpkt " << rtc::hex_encode(bw.Data(), bw.Length());
             }
         } else if (frame->Stream() == muxer::STREAM_RAWPACKET) {
             rtc::ByteBufferReader b(
@@ -638,12 +627,7 @@ public:
             }
 
             auto resampleCb = [&](const std::shared_ptr<muxer::MediaFrame>& out) {
-                RawpktAudio audio;
-                audio.audiodata = out->AvFrame()->data[0];
-                audio.samplebits = av_get_bytes_per_sample((AVSampleFormat)out->AvFrame()->format)*8;
-                audio.samplenr = out->AvFrame()->nb_samples;
-                audio.channels = out->AvFrame()->channels;
-                audio.samplerate = out->AvFrame()->sample_rate;
+                RawpktAudio audio(out->AvFrame());
                 Verbose("AVBroadcasterOnFrameAudioRawpktDecoded %d %d %d %d", 
                     audio.samplebits, audio.samplerate, audio.channels, audio.samplenr);
                 asrc_->OnData(audio.audiodata, audio.samplebits, audio.samplerate, audio.channels, audio.samplenr);
@@ -656,7 +640,7 @@ public:
 
             switch (pkttype) {
             case 1: // video
-                Verbose("AVBroadcasterOnFrameViodeoRawpkt");
+                Verbose("AVBroadcasterOnFrameVideoRawpkt");
                 vsrc_->OnFrame(webrtc::VideoFrame(frame->rawpkt));
                 break;
             case 2: // raw audio
@@ -680,8 +664,10 @@ public:
     rtc::VideoBroadcaster* vsrc_;
     AudioBroadcaster* asrc_;
     std::vector<uint8_t> audiobuf_;
+    std::shared_ptr<muxer::AvEncoder> encoder = nullptr;
     std::shared_ptr<muxer::AvDecoder> decoder = nullptr;
     std::shared_ptr<muxer::AudioResampler> resampler = nullptr;
+    bool dumpRawpkt = false;
 };
 
 bool WRTCConn::AddStream(SinkAddRemover* stream, std::vector<rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>> &tracks) {
@@ -695,6 +681,6 @@ bool WRTCConn::AddStream(SinkAddRemover* stream, std::vector<rtc::scoped_refptr<
     media_stream->AddTrack(atrk);
     tracks.push_back(vtrk);
     tracks.push_back(atrk);
-    stream->AddSink(newReqId(), new AVBroadcasterStreamSink(vsrc, asrc));
+    stream->AddSink(newReqId(), new AVBroadcasterStreamSink(vsrc, asrc, rtcconf.dump_rawpkt()));
     return pc_->AddStream(media_stream);
 }

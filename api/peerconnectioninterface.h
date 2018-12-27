@@ -296,6 +296,9 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     bool rawpkt() { return media_config.video.rawpkt; }
     void set_rawpkt(bool enable) { media_config.video.rawpkt = enable; }
 
+    bool dump_rawpkt() { return media_config.video.dump_rawpkt; }
+    void set_dump_rawpkt(bool enable) { media_config.video.dump_rawpkt = enable; }
+
     // TODO(nisse): The corresponding flag in MediaConfig and
     // elsewhere should be renamed enable_cpu_adaptation.
     bool cpu_adaptation() {

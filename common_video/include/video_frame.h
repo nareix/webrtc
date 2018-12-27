@@ -80,11 +80,16 @@ class EncodedImage {
     int64_t receive_finish_ms = 0;
   } timing_;
 
-  void Marshall(rtc::ByteBufferWriter& b) const {
+  void Marshall(rtc::ByteBufferWriter& mb) const {
+    // type 
+    mb.WriteUInt8(1);
+    mb.WriteUInt32(1);
+    mb.WriteUInt8(1); // video
+
     // img data
-    b.WriteUInt8(10);
-    b.WriteUInt32(_length);
-    b.WriteBytes((const char*)_buffer, _length);
+    mb.WriteUInt8(10);
+    mb.WriteUInt32(_length);
+    mb.WriteBytes((const char*)_buffer, _length);
 
     // img info
     {
@@ -103,9 +108,9 @@ class EncodedImage {
       b.WriteUInt32(playout_delay_.max_ms);
       b.WriteUInt8(_completeFrame != 0);
 
-      b.WriteUInt8(11);
-      b.WriteUInt32(b.Length());
-      b.WriteBytes(b.Data(), b.Length());
+      mb.WriteUInt8(11);
+      mb.WriteUInt32(b.Length());
+      mb.WriteBytes(b.Data(), b.Length());
     }
   }
 

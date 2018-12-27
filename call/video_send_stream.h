@@ -222,6 +222,7 @@ class VideoSendStream {
 
     // Use rawpkt.
     bool rawpkt = false;
+    bool dump_rawpkt = false;
 
    private:
     // Access to the copy constructor is private to force use of the Copy()

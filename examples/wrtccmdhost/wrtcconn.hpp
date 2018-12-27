@@ -72,6 +72,7 @@ private:
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> pc_;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
     rtc::Thread* signal_thread_;
+    webrtc::PeerConnectionInterface::RTCConfiguration rtcconf;
 };
 
 

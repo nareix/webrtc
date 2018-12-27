@@ -1049,10 +1049,10 @@ EncodedImageCallback::Result VideoSendStreamImpl::OnEncodedImage(
     const CodecSpecificInfo* codec_specific_info,
     const RTPFragmentationHeader* fragmentation) {  
 
-  if (rtc::LogMessage::Loggable(rtc::LoggingSeverity::LS_VERBOSE)) {
+  if (config_->dump_rawpkt) {
     rtc::ByteBufferWriter bw(rtc::ByteBuffer::ByteOrder::ORDER_NETWORK);
     marshallEncodedImage(bw, encoded_image, fragmentation);
-    LOG(LS_VERBOSE) << "VideoSendStreamImpl::OnEncodedImage " <<
+    LOG(LS_VERBOSE) << "DumpRawpkt " <<
       rtc::hex_encode(bw.Data(), bw.Length());
   }
 
