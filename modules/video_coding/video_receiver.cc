@@ -326,15 +326,19 @@ int32_t VideoReceiver::Decode(const VCMEncodedFrame& frame) {
   }
 
   if (_rawpkt) {
-    LOG(LS_VERBOSE) << "VideoReceiver::Decode " << frame.Length() << " " << rtc::hex_encode((const char*)frame.Buffer(), frame.Length());
+    //LOG(LS_VERBOSE) << "VideoReceiver::DecodeH264 " << rtc::hex_encode((const char*)frame.Buffer(), frame.Length());
 
     rtc::ByteBufferWriter b;
     frame.Marshall(b);
-    auto vframe = webrtc::VideoFrame(std::string(b.Data(), b.Length()));
+
+    auto rawpkt = std::make_shared<std::string>(b.Data(), b.Length());
+    auto vframe = webrtc::VideoFrame(rawpkt);
     vframe.set_timestamp(frame.TimeStamp());
 
     auto now_ms = clock_->TimeInMilliseconds();
     int32_t ret = decoder->Decode(frame, now_ms, true);
+
+    LOG(LS_VERBOSE) << "TraceRawpkt._decodedFrameCallback.Decoded DecodeFrame";
     _decodedFrameCallback.Decoded(vframe, now_ms);
     return ret;
   }

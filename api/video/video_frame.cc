@@ -24,7 +24,7 @@ VideoFrame::VideoFrame(const rtc::scoped_refptr<VideoFrameBuffer>& buffer,
       timestamp_us_(timestamp_us),
       rotation_(rotation) {}
 
-VideoFrame::VideoFrame(const std::string& rawpkt): 
+VideoFrame::VideoFrame(const std::shared_ptr<std::string>& rawpkt): 
   rawpkt(rawpkt), hasRawpkt(true), video_frame_buffer_(nullptr),
   timestamp_rtp_(0),
   ntp_time_ms_(0),

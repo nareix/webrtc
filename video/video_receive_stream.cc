@@ -190,7 +190,7 @@ void VideoReceiveStream::Start() {
       renderer = this;
     } else {
       incoming_video_stream_.reset(
-          new IncomingVideoStream(config_.render_delay_ms, this));
+          new IncomingVideoStream(config_.render_delay_ms, config_.rawpkt, this));
       renderer = incoming_video_stream_.get();
     }
   }

@@ -29,7 +29,7 @@ class VideoFrame {
              webrtc::VideoRotation rotation,
              int64_t timestamp_us);
 
-  VideoFrame(const std::string& rawpkt);
+  VideoFrame(const std::shared_ptr<std::string>& rawpkt);
 
   // Preferred constructor.
   VideoFrame(const rtc::scoped_refptr<VideoFrameBuffer>& buffer,
@@ -106,7 +106,7 @@ class VideoFrame {
   }
 
  public:
-  std::string rawpkt;
+  std::shared_ptr<std::string> rawpkt;
   bool hasRawpkt = false;
 
  private:

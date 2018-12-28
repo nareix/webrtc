@@ -20,7 +20,7 @@ namespace webrtc {
 
 class IncomingVideoStream : public rtc::VideoSinkInterface<VideoFrame> {
  public:
-  IncomingVideoStream(int32_t delay_ms,
+  IncomingVideoStream(int32_t delay_ms, bool rawpkt,
                       rtc::VideoSinkInterface<VideoFrame>* callback);
   ~IncomingVideoStream() override;
 
@@ -35,6 +35,7 @@ class IncomingVideoStream : public rtc::VideoSinkInterface<VideoFrame> {
   rtc::RaceChecker decoder_race_checker_;
 
   VideoRenderFrames render_buffers_;  // Only touched on the TaskQueue.
+  bool rawpkt_ = false;
   rtc::VideoSinkInterface<VideoFrame>* const callback_;
   rtc::TaskQueue incoming_render_queue_;
 };

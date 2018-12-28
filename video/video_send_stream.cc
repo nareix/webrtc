@@ -665,7 +665,7 @@ void VideoSendStream::OnFrame(const VideoFrame& frame) {
 
   EncodedImage img;
   rtc::ByteBufferReader br(
-    frame.rawpkt.c_str(), frame.rawpkt.size(),
+    frame.rawpkt->c_str(), frame.rawpkt->size(),
     rtc::ByteBuffer::ByteOrder::ORDER_NETWORK
   );
   RTPFragmentationHeader frag;

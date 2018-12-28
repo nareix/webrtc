@@ -115,8 +115,9 @@ public:
         std::chrono::duration<double, std::ratio<1,1>> elapsed_d(now - start_ts_);
 
         if (rawpkt) {
-            DebugR("OnFrameVideoRawpkt %zu", id_.c_str(), rtcframe.rawpkt.size());
-            std::shared_ptr<muxer::MediaFrame> frame = std::make_shared<muxer::MediaFrame>(rtcframe.rawpkt);
+            DebugR("OnFrameVideoRawpkt %zu", id_.c_str(), rtcframe.rawpkt->size());
+
+            std::shared_ptr<muxer::MediaFrame> frame = std::make_shared<muxer::MediaFrame>(*rtcframe.rawpkt);
             SendFrame(frame);
             return;
         }
@@ -264,7 +265,8 @@ public:
                 audio.channels = number_of_channels;
 
                 audio.Marshall(b);
-                auto frame = std::make_shared<muxer::MediaFrame>(std::string(b.Data(), b.Length()));
+                auto buf = std::string(b.Data(), b.Length());
+                auto frame = std::make_shared<muxer::MediaFrame>(buf);
                 SendFrame(frame);
             }
 
@@ -639,9 +641,11 @@ public:
             };
 
             switch (pkttype) {
-            case 1: // video
-                Verbose("AVBroadcasterOnFrameVideoRawpkt");
-                vsrc_->OnFrame(webrtc::VideoFrame(frame->rawpkt));
+            case 1: { // video
+                    Verbose("AVBroadcasterOnFrameVideoRawpkt");
+                    auto rawpkt = std::make_shared<std::string>(frame->rawpkt);
+                    vsrc_->OnFrame(webrtc::VideoFrame(rawpkt));
+                }
                 break;
             case 2: // raw audio
                 Verbose("AVBroadcasterOnFrameAudioRawpkt %d %d %d %d", 

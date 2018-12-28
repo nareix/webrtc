@@ -146,6 +146,8 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
   decodedImage.set_timestamp_us(
       frameInfo->renderTimeMs * rtc::kNumMicrosecsPerMillisec);
   decodedImage.set_rotation(frameInfo->rotation);
+  
+  LOG(LS_VERBOSE) << "TraceRawpkt.FrameToRender";
   _receiveCallback->FrameToRender(decodedImage, qp, frameInfo->content_type);
 }
 
