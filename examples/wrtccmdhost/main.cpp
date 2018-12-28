@@ -6,14 +6,14 @@
 #include "test.hpp"
 #include <signal.h>
 
-#include "rpc.h"
+// #include "rpc.h"
 
 unsigned int muxer::global::nLogLevel = 4;
 DEFINE_int(logLevel, 4, "log level");
 DEFINE_int(wrtcLogLevel, 0, "wrtc log level");
 DEFINE_bool(runTests, false, "run tests");
-DEFINE_string(grpcCliAddr, "", "grpc client addr");
-DEFINE_string(grpcSrvAddr, "", "grpc server addr");
+// DEFINE_string(grpcCliAddr, "", "grpc client addr");
+// DEFINE_string(grpcSrvAddr, "", "grpc server addr");
 
 int main(int argc, char **argv) {
     signal(SIGPIPE, SIG_IGN);
@@ -42,14 +42,14 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    auto grpcCliAddr = std::string(FLAG_grpcCliAddr);
-    auto grpcSrvAddr = std::string(FLAG_grpcSrvAddr);
-    if (grpcCliAddr != "") {
-        Info("grpcCliAddr %s grpcSrvAddr %s", grpcCliAddr.c_str(), grpcSrvAddr.c_str());
-        CmdhostRpc *rpc = new CmdhostRpc(grpcCliAddr, grpcSrvAddr);
-        rpc->Run();
-        return 0;
-    }
+    // auto grpcCliAddr = std::string(FLAG_grpcCliAddr);
+    // auto grpcSrvAddr = std::string(FLAG_grpcSrvAddr);
+    // if (grpcCliAddr != "") {
+    //     Info("grpcCliAddr %s grpcSrvAddr %s", grpcCliAddr.c_str(), grpcSrvAddr.c_str());
+    //     CmdhostRpc *rpc = new CmdhostRpc(grpcCliAddr, grpcSrvAddr);
+    //     rpc->Run();
+    //     return 0;
+    // }
 
     CmdHost *h = new CmdHost();
     h->Run();

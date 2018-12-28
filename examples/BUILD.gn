@@ -19,13 +19,13 @@ if (is_android) {
 
 rtc_executable("wrtccmdhost") {
   include_dirs = [
-    "wrtccmdhost/include",
+    #"wrtccmdhost/include",
   ]
   libs = [ 
-    "wrtccmdhost/lib/libgrpc++.a",
-    "wrtccmdhost/lib/libgrpc.a",
-    "wrtccmdhost/lib/libgrpc++_reflection.a",
-    "wrtccmdhost/lib/libgpr.a",
+    #"wrtccmdhost/lib/libgrpc++.a",
+    #"wrtccmdhost/lib/libgrpc.a",
+    #"wrtccmdhost/lib/libgrpc++_reflection.a",
+    #"wrtccmdhost/lib/libgpr.a",
     #"wrtccmdhost/lib/libprotobuf.a",
   ]
   sources = [
@@ -50,15 +50,15 @@ rtc_executable("wrtccmdhost") {
     "wrtccmdhost/util.hpp",
     "wrtccmdhost/stream.hpp",
     "wrtccmdhost/stream.cpp",
-    "wrtccmdhost/rpc.grpc.pb.cc",
-    "wrtccmdhost/rpc.grpc.pb.h",
-    "wrtccmdhost/rpc.pb.cc",
-    "wrtccmdhost/rpc.pb.h",
-    "wrtccmdhost/rpc.cpp",
-    "wrtccmdhost/rpc.h",
+    #"wrtccmdhost/rpc.grpc.pb.cc",
+    #"wrtccmdhost/rpc.grpc.pb.h",
+    #"wrtccmdhost/rpc.pb.cc",
+    #"wrtccmdhost/rpc.pb.h",
+    #"wrtccmdhost/rpc.cpp",
+    #"wrtccmdhost/rpc.h",
   ]
   cflags = [ ]
-  defines = [ "GOOGLE_PROTOBUF_NO_RTTI", "GPR_FORBID_UNREACHABLE_CODE", "PROTOBUF_INLINE_NOT_IN_HEADERS" ]
+  #defines = [ "GOOGLE_PROTOBUF_NO_RTTI", "GPR_FORBID_UNREACHABLE_CODE", "PROTOBUF_INLINE_NOT_IN_HEADERS" ]
   deps = [
     "../rtc_base:rtc_base",
     "../rtc_base:rtc_json",
@@ -69,7 +69,7 @@ rtc_executable("wrtccmdhost") {
     "../modules/audio_device:audio_device",
     "//third_party/ffmpeg",
     "//third_party/librtmp",
-    "//third_party/protobuf:protobuf_full",
+    #"//third_party/protobuf:protobuf_full",
   ]
   suppressed_configs += [ "//build/config/clang:find_bad_constructs" ]
 }
