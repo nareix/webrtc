@@ -843,6 +843,7 @@ int RtmpSender::Send(IN const std::string& url, IN const std::shared_ptr<MediaPa
                         XInfo("rtmp: init");
                         pRtmp_ = RTMP_Alloc();
                         RTMP_Init(pRtmp_);
+                        pRtmp_->reqid = xl_->reqid_.c_str();
                 } else {
                         XInfo("flv: create %s", url.c_str());
                         pFlvFile_ = FlvFile::Create(url);
