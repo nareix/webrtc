@@ -843,7 +843,7 @@ int RtmpSender::Send(IN const std::string& url, IN const std::shared_ptr<MediaPa
                         XInfo("rtmp: init");
                         pRtmp_ = RTMP_Alloc();
                         RTMP_Init(pRtmp_);
-                        pRtmp_->reqid = xl_->reqid_.c_str();
+                        pRtmp_->reqid = (char *)strdup(xl_->reqid_.c_str());
                 } else {
                         XInfo("flv: create %s", url.c_str());
                         pFlvFile_ = FlvFile::Create(url);
@@ -863,7 +863,7 @@ int RtmpSender::Send(IN const std::string& url, IN const std::shared_ptr<MediaPa
         if (pRtmp_ != nullptr && RTMP_IsConnected(pRtmp_) == 0) {
                 url_ = url;
 
-                XInfo("rtmp: connecting to %s...", url_.c_str());
+                XInfo("rtmp: connecting to %s", url_.c_str());
 
                 if (RTMP_SetupURL(pRtmp_, const_cast<char*>(url_.c_str())) == 0) {
                         XError("rtmp: setup URL");
@@ -872,12 +872,12 @@ int RtmpSender::Send(IN const std::string& url, IN const std::shared_ptr<MediaPa
                 }
                 RTMP_EnableWrite(pRtmp_);
                 if (RTMP_Connect(pRtmp_, nullptr) == 0) {
-                        XError("rtmp: connect");
+                        XError("rtmp: connect failed");
                         closeRtmpReset();
                         return -1;
                 }
                 if (RTMP_ConnectStream(pRtmp_, 0) == 0) {
-                        XError("rtmp: connect stream");
+                        XError("rtmp: connect stream failed");
                         closeRtmpReset();
                         return -1;
                 }
