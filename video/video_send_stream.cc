@@ -661,7 +661,7 @@ void VideoSendStream::OnFrame(const VideoFrame& frame) {
 
   CodecSpecificInfo codec_specific;
   codec_specific.codecType = kVideoCodecH264;
-  codec_specific.codecSpecific.H264.packetization_mode = H264PacketizationMode::SingleNalUnit;
+  codec_specific.codecSpecific.H264.packetization_mode = H264PacketizationMode::NonInterleaved;
 
   EncodedImage img;
   rtc::ByteBufferReader br(
