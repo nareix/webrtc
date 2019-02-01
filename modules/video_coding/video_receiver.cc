@@ -18,7 +18,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/trace_event.h"
-#include "rtc_base/stringencode.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
@@ -29,8 +28,7 @@ VideoReceiver::VideoReceiver(Clock* clock,
                              EncodedImageCallback* pre_decode_image_callback,
                              VCMTiming* timing,
                              NackSender* nack_sender,
-                             KeyFrameRequestSender* keyframe_request_sender,
-                             bool rawpkt)
+                             KeyFrameRequestSender* keyframe_request_sender)
     : clock_(clock),
       _timing(timing),
       _receiver(_timing,
@@ -50,8 +48,7 @@ VideoReceiver::VideoReceiver(Clock* clock,
       pre_decode_image_callback_(pre_decode_image_callback),
       _receiveStatsTimer(1000, clock_),
       _retransmissionTimer(10, clock_),
-      _keyRequestTimer(500, clock_),
-      _rawpkt(rawpkt) {}
+      _keyRequestTimer(500, clock_) {}
 
 VideoReceiver::~VideoReceiver() {}
 
@@ -317,32 +314,12 @@ int32_t VideoReceiver::RequestKeyFrame() {
 // Must be called from inside the receive side critical section.
 int32_t VideoReceiver::Decode(const VCMEncodedFrame& frame) {
   TRACE_EVENT0("webrtc", "VideoReceiver::Decode");
-
   // Change decoder if payload type has changed
   VCMGenericDecoder* decoder =
       _codecDataBase.GetDecoder(frame, &_decodedFrameCallback);
   if (decoder == nullptr) {
     return VCM_NO_CODEC_REGISTERED;
   }
-
-  if (_rawpkt) {
-    //LOG(LS_VERBOSE) << "VideoReceiver::DecodeH264 " << rtc::hex_encode((const char*)frame.Buffer(), frame.Length());
-
-    rtc::ByteBufferWriter b;
-    frame.Marshall(b);
-
-    auto rawpkt = std::make_shared<std::string>(b.Data(), b.Length());
-    auto vframe = webrtc::VideoFrame(rawpkt);
-    vframe.set_timestamp(frame.TimeStamp());
-
-    auto now_ms = clock_->TimeInMilliseconds();
-    int32_t ret = decoder->Decode(frame, now_ms, true);
-
-    LOG(LS_VERBOSE) << "TraceRawpkt._decodedFrameCallback.Decoded DecodeFrame";
-    _decodedFrameCallback.Decoded(vframe, now_ms);
-    return ret;
-  }
-
   return decoder->Decode(frame, clock_->TimeInMilliseconds());
 }
 

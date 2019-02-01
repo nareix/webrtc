@@ -92,7 +92,7 @@ VideoReceiveStream::VideoReceiveStream(
       call_stats_(call_stats),
       rtp_receive_statistics_(ReceiveStatistics::Create(clock_)),
       timing_(new VCMTiming(clock_)),
-      video_receiver_(clock_, nullptr, this, timing_.get(), this, this, config.rawpkt),
+      video_receiver_(clock_, nullptr, this, timing_.get(), this, this),
       stats_proxy_(&config_, clock_),
       rtp_video_stream_receiver_(&transport_adapter_,
                                  call_stats_->rtcp_rtt_stats(),
@@ -190,7 +190,7 @@ void VideoReceiveStream::Start() {
       renderer = this;
     } else {
       incoming_video_stream_.reset(
-          new IncomingVideoStream(config_.render_delay_ms, config_.rawpkt, this));
+          new IncomingVideoStream(config_.render_delay_ms, this));
       renderer = incoming_video_stream_.get();
     }
   }

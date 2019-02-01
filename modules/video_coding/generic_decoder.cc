@@ -18,7 +18,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/timeutils.h"
 #include "rtc_base/trace_event.h"
-#include "rtc_base/stringencode.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
@@ -146,8 +145,6 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
   decodedImage.set_timestamp_us(
       frameInfo->renderTimeMs * rtc::kNumMicrosecsPerMillisec);
   decodedImage.set_rotation(frameInfo->rotation);
-  
-  LOG(LS_VERBOSE) << "TraceRawpkt.FrameToRender";
   _receiveCallback->FrameToRender(decodedImage, qp, frameInfo->content_type);
 }
 
@@ -211,7 +208,7 @@ int32_t VCMGenericDecoder::InitDecode(const VideoCodec* settings,
   return decoder_->InitDecode(settings, numberOfCores);
 }
 
-int32_t VCMGenericDecoder::Decode(const VCMEncodedFrame& frame, int64_t nowMs, bool fake_decode) {
+int32_t VCMGenericDecoder::Decode(const VCMEncodedFrame& frame, int64_t nowMs) {
     TRACE_EVENT1("webrtc", "VCMGenericDecoder::Decode", "timestamp",
                  frame.EncodedImage()._timeStamp);
     _frameInfos[_nextFrameInfoIdx].decodeStartTimeMs = nowMs;
@@ -231,14 +228,9 @@ int32_t VCMGenericDecoder::Decode(const VCMEncodedFrame& frame, int64_t nowMs, b
 
     _nextFrameInfoIdx = (_nextFrameInfoIdx + 1) % kDecoderFrameMemoryLength;
     const RTPFragmentationHeader dummy_header;
-
-    int32_t ret = 0;
-
-    if (!fake_decode) {
-      ret = decoder_->Decode(frame.EncodedImage(), frame.MissingFrame(),
-                                &dummy_header,
-                                frame.CodecSpecific(), frame.RenderTimeMs());
-    }
+    int32_t ret = decoder_->Decode(frame.EncodedImage(), frame.MissingFrame(),
+                                   &dummy_header,
+                                   frame.CodecSpecific(), frame.RenderTimeMs());
 
     _callback->OnDecoderImplementationName(decoder_->ImplementationName());
     if (ret < WEBRTC_VIDEO_CODEC_OK) {

@@ -79,7 +79,6 @@ rtc::Optional<VideoFrame> VideoRenderFrames::FrameToRender() {
     render_frame =
         rtc::Optional<VideoFrame>(std::move(incoming_frames_.front()));
     incoming_frames_.pop_front();
-    LOG(LS_VERBOSE) << "TraceRawpkt.VideoRenderFrames::FrameToRender DropFrame";
   }
   return render_frame;
 }

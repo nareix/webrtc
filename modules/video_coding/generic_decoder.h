@@ -89,7 +89,7 @@ class VCMGenericDecoder {
   *
   * inputVideoBuffer reference to encoded video frame
   */
-  int32_t Decode(const VCMEncodedFrame& inputFrame, int64_t nowMs, bool fake_decode = false);
+  int32_t Decode(const VCMEncodedFrame& inputFrame, int64_t nowMs);
 
   /**
   * Set decode callback. Deregistering while decoding is illegal.

@@ -49,10 +49,8 @@ class IncomingVideoStream::NewFrameTask : public rtc::QueuedTask {
 
 IncomingVideoStream::IncomingVideoStream(
     int32_t delay_ms,
-    bool rawpkt,
     rtc::VideoSinkInterface<VideoFrame>* callback)
     : render_buffers_(delay_ms),
-      rawpkt_(rawpkt),
       callback_(callback),
       incoming_render_queue_(kIncomingQueueName,
                              rtc::TaskQueue::Priority::HIGH) {}
@@ -65,12 +63,8 @@ void IncomingVideoStream::OnFrame(const VideoFrame& video_frame) {
   TRACE_EVENT0("webrtc", "IncomingVideoStream::OnFrame");
   RTC_CHECK_RUNS_SERIALIZED(&decoder_race_checker_);
   RTC_DCHECK(!incoming_render_queue_.IsCurrent());
-  if (rawpkt_) {
-    callback_->OnFrame(video_frame);
-  } else {
-    incoming_render_queue_.PostTask(
-        std::unique_ptr<rtc::QueuedTask>(new NewFrameTask(this, video_frame)));
-  }
+  incoming_render_queue_.PostTask(
+      std::unique_ptr<rtc::QueuedTask>(new NewFrameTask(this, video_frame)));
 }
 
 void IncomingVideoStream::Dequeue() {
