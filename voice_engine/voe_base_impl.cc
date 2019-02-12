@@ -14,7 +14,7 @@
 #include "common_audio/signal_processing/include/signal_processing_library.h"
 #include "modules/audio_coding/include/audio_coding_module.h"
 #include "modules/audio_device/audio_device_impl.h"
-#include "modules/audio_device/include/fake_audio_device.h"
+#include "modules/audio_device/include/fake_audio_device2.h"
 #include "modules/audio_processing/include/audio_processing.h"
 #include "rtc_base/format_macros.h"
 #include "rtc_base/location.h"
@@ -161,7 +161,7 @@ int VoEBaseImpl::Init(
     return -1;
 #else
     // Create the internal ADM implementation.
-    shared_->set_audio_device(new rtc::RefCountedObject<FakeAudioDeviceModule>());
+    shared_->set_audio_device(new rtc::RefCountedObject<FakeAudioDeviceModule2>());
     if (shared_->audio_device() == nullptr) {
       LOG(LS_ERROR) << "Init() failed to create the ADM";
       return -1;
