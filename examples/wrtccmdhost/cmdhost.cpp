@@ -28,6 +28,7 @@ const std::string mtSetLocalDesc = "set-local-desc";
 const std::string mtSetRemoteDescCreateAnswer = "set-remote-desc-create-answer";
 const std::string mtOnIceCandidate = "on-ice-candidate";
 const std::string mtOnIceConnectionChange = "on-ice-conn-state-change";
+const std::string mtOnIceGatheringChange = "on-ice-gathering-change";
 const std::string mtAddIceCandidate = "add-ice-candidate";
 const std::string mtOnConnAddStream = "on-conn-add-stream";
 const std::string mtOnConnRemoveStream = "on-conn-remove-stream";
@@ -94,6 +95,19 @@ static std::string iceStateToString(webrtc::PeerConnectionInterface::IceConnecti
     }
 }
 
+static std::string iceGatheringStateToString(webrtc::PeerConnectionInterface::IceGatheringState state) {
+    switch (state) {
+    case webrtc::PeerConnectionInterface::kIceGatheringNew:
+        return "new";
+    case webrtc::PeerConnectionInterface::kIceGatheringGathering:
+        return "gathering";
+    case webrtc::PeerConnectionInterface::kIceGatheringComplete:
+        return "complete";
+    default:
+        return "unknown";
+    }
+}
+
 class ConnObserver: public WRTCConn::ConnObserver {
 public:
     ConnObserver(CmdHost *h) : h_(h) {}
@@ -112,6 +126,11 @@ public:
         Json::Value res;
         res["state"] = iceStateToString(new_state);
         writeMessage(mtOnIceConnectionChange, res);
+    }
+    void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {
+        Json::Value res;
+        res["state"] = iceGatheringStateToString(new_state);
+        writeMessage(mtOnIceGatheringChange, res);
     }
     void OnAddStream(const std::string& id, const std::string& stream_id, Stream *stream) {
         {

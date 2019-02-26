@@ -324,7 +324,10 @@ public:
     void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) {
         conn_observer_->OnIceConnectionChange(new_state);
     }
-    void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {}
+    void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {
+        InfoR("OnIceGatheringChange new_state=%d", id_.c_str(), new_state);
+        conn_observer_->OnIceGatheringChange(new_state);
+    }
     void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
         conn_observer_->OnIceCandidate(candidate);
     }

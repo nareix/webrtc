@@ -18,6 +18,7 @@ public:
     public:
         virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) = 0;
         virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) = 0;
+        virtual void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) = 0;
         virtual void OnAddStream(const std::string& id, const std::string& stream_id, Stream* stream) = 0;
         virtual void OnRemoveStream(const std::string& id, const std::string& stream_id) = 0;
    protected:
