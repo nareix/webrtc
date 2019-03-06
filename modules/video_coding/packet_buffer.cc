@@ -274,6 +274,11 @@ std::vector<std::unique_ptr<RtpFrameObject>> PacketBuffer::FindFrames(
       bool is_h264_keyframe = false;
       int64_t frame_timestamp = data_buffer_[start_index].timestamp;
 
+      bool has_h264_sps = false;
+      bool has_h264_pps = false;
+      bool has_h264_idr = false;
+      bool sps_pps_idr_is_h264_keyframe_ = true;
+
       while (true) {
         ++tested_packets;
         frame_size += data_buffer_[start_index].sizeBytes;
@@ -285,13 +290,21 @@ std::vector<std::unique_ptr<RtpFrameObject>> PacketBuffer::FindFrames(
           break;
 
         if (is_h264 && !is_h264_keyframe) {
-          const RTPVideoHeaderH264& header =
-              data_buffer_[start_index].video_header.codecHeader.H264;
-          for (size_t i = 0; i < header.nalus_length; ++i) {
-            if (header.nalus[i].type == H264::NaluType::kIdr) {
-              is_h264_keyframe = true;
-              break;
+          const RTPVideoHeaderH264 *h264_header =
+              &data_buffer_[start_index].video_header.codecHeader.H264;
+          for (size_t j = 0; j < h264_header->nalus_length; ++j) {
+            if (h264_header->nalus[j].type == H264::NaluType::kSps) {
+              has_h264_sps = true;
+            } else if (h264_header->nalus[j].type == H264::NaluType::kPps) {
+              has_h264_pps = true;
+            } else if (h264_header->nalus[j].type == H264::NaluType::kIdr) {
+              has_h264_idr = true;
             }
+          }
+          if ((sps_pps_idr_is_h264_keyframe_ && has_h264_idr && has_h264_sps &&
+               has_h264_pps) ||
+              (!sps_pps_idr_is_h264_keyframe_ && has_h264_idr)) {
+            is_h264_keyframe = true;
           }
         }
 
