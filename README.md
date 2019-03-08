@@ -26,7 +26,7 @@ started developing with the native code.
 
 # 编译
 
-按 http://www.webrtc.org/native-code/development 的指引安装 
+按 https://webrtc.org/native-code/development/prerequisite-sw/ 的指引安装编译工具
 
 新建 `.gclient` 文件，内容如下：
 
