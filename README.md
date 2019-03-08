@@ -23,3 +23,39 @@ started developing with the native code.
  * Continuous build: http://build.chromium.org/p/client.webrtc
  * [Coding style guide](style-guide.md)
  * [Code of conduct](CODE_OF_CONDUCT.md)
+
+# 编译
+
+按 http://www.webrtc.org/native-code/development 的指引安装 
+
+新建 `.gclient` 文件，内容如下：
+
+```
+solutions = [
+  {
+    "url": "https://github.com/qbox/webrtc.git",
+    "managed": False,
+    "name": "src",
+    "deps_file": "DEPS",
+    "custom_deps": {},
+  },
+]
+```
+
+获取源码：
+
+```
+gclient sync
+```
+
+编译 x264/fdkaac：
+
+```
+cd src/third_party/x264
+./conf.sh
+make install
+
+cd src/third_party/fdkaac
+./conf.sh
+make install
+```
