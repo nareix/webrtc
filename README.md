@@ -59,3 +59,11 @@ cd src/third_party/fdkaac
 ./conf.sh
 make install
 ```
+
+编译 wrtccmdhost：
+
+```
+gn gen out/Default --args="is_debug=false"
+ninja -C out/Default wrtccmdhost
+```
+
