@@ -53,6 +53,12 @@ class H264DecoderImpl : public H264Decoder {
                  const CodecSpecificInfo* codec_specific_info = nullptr,
                  int64_t render_time_ms = -1) override;
 
+  int32_t Decode2(const EncodedImage& input_image,
+                 bool /*missing_frames*/,
+                 const RTPFragmentationHeader* /*fragmentation*/,
+                 const CodecSpecificInfo* codec_specific_info = nullptr,
+                 int64_t render_time_ms = -1);
+
   const char* ImplementationName() const override;
 
  private:

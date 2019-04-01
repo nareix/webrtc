@@ -276,10 +276,14 @@ int32_t H264DecoderImpl::RegisterDecodeCompleteCallback(
 }
 
 int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
-                                bool /*missing_frames*/,
-                                const RTPFragmentationHeader* /*fragmentation*/,
+                                bool miss/*missing_frames*/,
+                                const RTPFragmentationHeader* frag/*fragmentation*/,
                                 const CodecSpecificInfo* codec_specific_info,
-                                int64_t /*render_time_ms*/) {
+                                int64_t time/*render_time_ms*/) {
+  if (input_image.RawPkt()) {
+      return Decode2(input_image, miss, frag, codec_specific_info, time);
+  }
+
   if (!IsInitialized()) {
     ReportError();
     return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
@@ -394,6 +398,33 @@ int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
   av_frame_unref(av_frame_.get());
   video_frame = nullptr;
 
+  return WEBRTC_VIDEO_CODEC_OK;
+}
+
+int32_t H264DecoderImpl::Decode2(const EncodedImage& frame,
+                                bool /*missing_frames*/,
+                                const RTPFragmentationHeader* /*fragmentation*/,
+                                const CodecSpecificInfo* codec_specific_info,
+                                int64_t /*render_time_ms*/) {
+  if (!IsInitialized()) {
+    ReportError();
+    return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
+  }
+  if (!decoded_image_callback_) {
+    LOG(LS_WARNING) << "InitDecode() has been called, but a callback function "
+        "has not been set with RegisterDecodeCompleteCallback()";
+    ReportError();
+    return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
+  }
+
+  rtc::ByteBufferWriter b;
+  frame.Marshall(b);
+  auto rawpkt = std::make_shared<std::string>(b.Data(), b.Length());
+  auto vframe = webrtc::VideoFrame(rawpkt);
+  vframe.set_timestamp(frame._timeStamp);
+  rtc::Optional<uint8_t> qp;
+  decoded_image_callback_->Decoded(vframe, rtc::Optional<int32_t>(),
+                                     qp);
   return WEBRTC_VIDEO_CODEC_OK;
 }
 

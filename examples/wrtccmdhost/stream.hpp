@@ -11,10 +11,13 @@ public:
     virtual void OnStart() {};
     virtual void OnStop() {};
     virtual void OnStatBytes(int64_t& bytes) {};
+    virtual void SetRequestKeyFrame(bool req) { need_requestKeyFrame = req;}
+    virtual bool GetRequestKeyFrame() { return need_requestKeyFrame; }
     virtual ~SinkObserver() {}
 
 private:
     std::string id_;
+    bool need_requestKeyFrame;
 };
 
 class SinkAddRemover {
@@ -37,6 +40,7 @@ public:
     bool RemoveSink(const std::string& id);
     SinkObserver *FindSink(const std::string& id);
     void SendFrame(const std::shared_ptr<muxer::MediaFrame>& frame);
+    std::map<std::string, SinkObserver*>& GetSinks() {return sinks_map_;}
 
 private:
     std::map<std::string, SinkObserver*> sinks_map_;

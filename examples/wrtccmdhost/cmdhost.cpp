@@ -7,6 +7,7 @@
 
 const std::string kId = "id";
 const std::string kStreamId = "stream_id";
+const std::string kSinkId = "sink_id";
 const std::string kCode = "code";
 const std::string kError = "error";
 const std::string kSdp = "sdp";
@@ -46,6 +47,7 @@ const std::string mtNewRawStream = "new-raw-stream";
 const std::string mtSinkRawpkt = "on-sink-rawpkt";
 const std::string mtRawStreamSendPacket = "raw-stream-send-packet";
 const std::string mtSinkStats = "sink-stats";
+const std::string mtRequestKeyFrame = "request-key-frame";
 
 static void parseOfferAnswerOpt(const Json::Value& v, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions& opt) {
     auto audio = v["audio"];
@@ -891,7 +893,7 @@ void CmdHost::handleSinkStats(const Json::Value& req, rtc::scoped_refptr<CmdDone
         return;
     }
 
-    auto sink = stream->FindSink(jsonAsString(req["sink_id"]));
+    auto sink = stream->FindSink(jsonAsString(req[kSinkId]));
     if (sink == NULL) {
         observer->OnFailure(errInvalidParams, "sink not found");
         return;
@@ -903,6 +905,22 @@ void CmdHost::handleSinkStats(const Json::Value& req, rtc::scoped_refptr<CmdDone
     Json::Value res;
     res["bytes"] = int(bytes);
     observer->OnSuccess(res);
+}
+
+void CmdHost::handleRequestKeyFrame(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto stream = checkStream(jsonAsString(req[kId]), observer);
+    if (stream == NULL) {
+        return;
+    }
+
+    auto sink = stream->FindSink(jsonAsString(req[kSinkId]));
+    if (sink == NULL) {
+        observer->OnFailure(errInvalidParams, "sink not found");
+        return;
+    }
+
+    sink->SetRequestKeyFrame(true);
+    observer->OnSuccess();
 }
 
 class CmdDoneWriteResObserver: public CmdHost::CmdDoneObserver {
@@ -969,6 +987,8 @@ void CmdHost::handleReq(rtc::scoped_refptr<MsgPump::Request> req) {
         handleRawStreamSendPacket(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtSinkStats) {
         handleSinkStats(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));        
+    } else if (type == mtRequestKeyFrame) {
+        handleRequestKeyFrame(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     }
 }
 

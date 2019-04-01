@@ -108,6 +108,7 @@ class VideoFrame {
  public:
   std::shared_ptr<std::string> rawpkt;
   bool hasRawpkt = false;
+  bool reqKeyFrame = false;
 
  private:
   // An opaque reference counted handle that stores the pixel data.

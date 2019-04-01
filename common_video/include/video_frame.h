@@ -37,6 +37,8 @@ class EncodedImage {
   EncodedImage(uint8_t* buffer, size_t length, size_t size);
 
   void SetEncodeTime(int64_t encode_start_ms, int64_t encode_finish_ms) const;
+  void SetRawPkt(bool flag) { _rawpkt = flag; }
+  bool RawPkt() const {return _rawpkt;}
 
   // TODO(kthelgason): get rid of this struct as it only has a single member
   // remaining.
@@ -61,6 +63,7 @@ class EncodedImage {
   bool _completeFrame = false;
   AdaptReason adapt_reason_;
   int qp_ = -1;  // Quantizer value.
+  bool _rawpkt = false;
 
   // When an application indicates non-zero values here, it is taken as an
   // indication that all future frames will be constrained with those limits

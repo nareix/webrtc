@@ -15,6 +15,7 @@
 #include "rtc_base/bytebuffer.h"
 #include "rtc_base/base64.h"
 #include "rtc_base/stringencode.h"
+#include <sys/types.h>
 
 static bool streamOnFrameConvAAC = true;
 
@@ -115,10 +116,18 @@ public:
         std::chrono::duration<double, std::ratio<1,1>> elapsed_d(now - start_ts_);
 
         if (rawpkt) {
-            DebugR("OnFrameVideoRawpkt %zu", id_.c_str(), rtcframe.rawpkt->size());
-
             std::shared_ptr<muxer::MediaFrame> frame = std::make_shared<muxer::MediaFrame>(*rtcframe.rawpkt);
             SendFrame(frame);
+
+            std::map<std::string, SinkObserver*> _map = GetSinks();
+            std::map<std::string, SinkObserver*>::iterator iter;
+            for (iter = _map.begin(); iter != _map.end(); iter ++){
+                if (iter->second->GetRequestKeyFrame()) {
+                    webrtc::VideoFrame& vf = const_cast<webrtc::VideoFrame&>(rtcframe);
+                    vf.reqKeyFrame = true;
+                    iter->second->SetRequestKeyFrame(false);
+                }
+            }
             return;
         }
 
