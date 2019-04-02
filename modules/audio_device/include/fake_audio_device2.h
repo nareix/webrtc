@@ -186,11 +186,11 @@ class FakeAudioDeviceModule2 : public AudioDeviceModule {
     rtc::CritScope lock(&_critSect);
     if (playing_)
       return 0;
+    _audioDeviceBuffer.StartPlayout();
     render_worker_thread_.reset(
         new rtc::PlatformThread(RunRender, this, "RenderWorkerThread"));
     render_worker_thread_->Start();
     render_worker_thread_->SetPriority(rtc::kRealtimePriority);
-    _audioDeviceBuffer.StartPlayout();
     playing_ = true;
     return 0; 
   }
@@ -202,11 +202,11 @@ class FakeAudioDeviceModule2 : public AudioDeviceModule {
     rtc::CritScope lock(&_critSect);
     if (recording_)
       return 0;
+    _audioDeviceBuffer.StartRecording();
     capture_worker_thread_.reset(
         new rtc::PlatformThread(RunCapture, this, "CaptureWorkerThread"));
     capture_worker_thread_->Start();
     capture_worker_thread_->SetPriority(rtc::kRealtimePriority);
-    _audioDeviceBuffer.StartRecording();
     recording_ = true;
     return 0; 
   }
