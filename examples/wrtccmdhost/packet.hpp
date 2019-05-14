@@ -98,6 +98,9 @@ namespace muxer
                 int Z() const;
                 void Z(IN int);
 
+                uint64_t TimeStamp() const {return rawpkt_timestamp;}
+                void SetTimeStamp(IN uint64_t ts){rawpkt_timestamp = ts;}
+
         public:
                 std::string rawpkt;
 
@@ -110,6 +113,7 @@ namespace muxer
                 unsigned char* pExtraBuf_ = nullptr;
 
                 int nX_ = 0, nY_ = 0, nZ_ = 0;
+                uint64_t rawpkt_timestamp = 0;
 
         };
 }

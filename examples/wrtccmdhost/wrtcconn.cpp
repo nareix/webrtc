@@ -98,12 +98,12 @@ public:
         webrtc::AudioTrackVector atracks = stream->GetAudioTracks();
         if (!vtracks.empty()) {
             webrtc::VideoTrackInterface* track = vtracks[0];
-            DebugR("AddVideoTrackSink state=%d enabled=%d", id.c_str(), track->state(), track->enabled());
+            DebugR("AddVideoTrackSink state=%d enabled=%d, id=%s", id.c_str(), track->state(), track->enabled(), track->id().c_str());
             track->AddOrUpdateSink(this, rtc::VideoSinkWants());
         }
         if (!atracks.empty()) {
             webrtc::AudioTrackInterface *track = atracks[0];
-            DebugR("AddAudioSink", id.c_str());
+            DebugR("AddAudioSink, id=%s", id.c_str(), track->id().c_str());
             track->AddSink(this);
         }
 
@@ -117,6 +117,12 @@ public:
 
         if (rawpkt) {
             std::shared_ptr<muxer::MediaFrame> frame = std::make_shared<muxer::MediaFrame>(*rtcframe.rawpkt);
+            if (this->videopts_base == 0) {
+                this->videopts_base = rtcframe.timestamp();
+            }
+            uint64_t timeDelta = (rtcframe.timestamp() - this->videopts_base) / 90;
+            DebugR("OnFrameVideo ts=%lf, videopts_base %llu, timeDelta %llu", id_.c_str(), elapsed_d.count(), this->videopts_base, timeDelta);
+            frame->SetTimeStamp(timeDelta);
             SendFrame(frame);
 
             std::map<std::string, SinkObserver*> _map = GetSinks();
@@ -130,8 +136,6 @@ public:
             }
             return;
         }
-
-        DebugR("OnFrameVideo ts=%lf", id_.c_str(), elapsed_d.count());
 
         if (rtcframe.width() == 0 || rtcframe.height() == 0) {
             return;
@@ -233,7 +237,9 @@ public:
                 auto encodeCb = [&](IN const std::shared_ptr<muxer::MediaPacket>& pkt) -> int {
                     rtc::ByteBufferWriter b;
 
-                    DebugR("OnFrameAudioRawpktEncoded", id_.c_str());
+                    auto now = std::chrono::high_resolution_clock::now();
+                    std::chrono::duration<double, std::ratio<1,1>> elapsed_d(now - start_ts_);
+                    DebugR("OnFrameAudio ts=%lf, pts:%llu", id_.c_str(), elapsed_d.count(), pkt->Pts());
 
                     b.WriteUInt8(1);
                     b.WriteUInt32(1);
@@ -245,6 +251,7 @@ public:
 
                     audio.Marshall(b);
                     auto frame = std::make_shared<muxer::MediaFrame>(std::string(b.Data(), b.Length()));
+                    frame->SetTimeStamp(pkt->Pts());
                     SendFrame(frame);
 
                     return 0;
@@ -284,10 +291,6 @@ public:
 
         auto frame = getAudioFrame(audio_data, bits_per_sample, sample_rate, number_of_channels, number_of_frames);
 
-        DebugR("OnFrameAudio %zu %d %d %zu",
-            id_.c_str(), number_of_frames, sample_rate, bits_per_sample, number_of_channels
-            );
-
         SendFrame(frame);
         DebugPCM("/tmp/rtc.orig.s16", audio_data, bits_per_sample/8*number_of_frames*number_of_channels);
     }
@@ -297,6 +300,7 @@ public:
     std::shared_ptr<muxer::AvEncoder> encoder = nullptr;
     std::shared_ptr<muxer::AudioResampler> resampler = nullptr;
     bool rawpkt = false;
+    uint64_t videopts_base = 0;
 };
 
 class PeerConnectionObserver: public webrtc::PeerConnectionObserver {

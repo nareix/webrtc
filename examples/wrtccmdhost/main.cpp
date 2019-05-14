@@ -26,7 +26,8 @@ int main(int argc, char **argv) {
 
     muxer::global::nLogLevel = FLAG_logLevel;
 
-    rtc::LoggingSeverity rtcls = rtc::LS_NONE;
+    rtc::LoggingSeverity rtcls = rtc::LS_INFO;
+    rtc::LogMessage::LogTimestamps(true);
     switch (FLAG_wrtcLogLevel) {
     case 1: rtcls = rtc::LS_ERROR; break;
     case 2: rtcls = rtc::LS_WARNING; break;
@@ -35,7 +36,8 @@ int main(int argc, char **argv) {
     case 5: rtcls = rtc::LS_SENSITIVE; break;
     default: rtcls = rtc::LS_NONE; break;
     }
-    rtc::LogMessage::LogToDebug(rtcls);
+    //rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
+    //rtc::LogMessage::SetLogToStderr(true);
 
     if (FLAG_runTests) {
         Tests::Run();
