@@ -566,7 +566,7 @@ public:
     void OnFrame(const std::shared_ptr<muxer::MediaFrame>& frame) {
         Json::Value res;
         res[kId] = sinkid;
-        res["pts"] = frame->TimeStamp();
+        res["pts"] = Json::UInt64(frame->TimeStamp());
         res["rawpkt"] = rtc::Base64::Encode(frame->rawpkt);
         h->writeMessage(mtSinkRawpkt, res);
     }
