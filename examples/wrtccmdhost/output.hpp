@@ -285,6 +285,7 @@ namespace muxer
                 bool keepSpsPpsInNalus_ = false;
                 bool dontSendMetadata_ = false;
                 bool dontReconnect_ = false;
+                bool firstConnected = false;
 
                 // sequence header
                 std::shared_ptr<H264Nalu> pSps_ = nullptr;

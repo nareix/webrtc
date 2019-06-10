@@ -860,7 +860,11 @@ int RtmpSender::Send(IN const std::string& url, IN const std::shared_ptr<MediaPa
         }
 
         // connect to the server for the first time to send data
-        if (pRtmp_ != nullptr && RTMP_IsConnected(pRtmp_) == 0 && !dontReconnect_) {
+        if (pRtmp_ != nullptr && RTMP_IsConnected(pRtmp_) == 0) {
+                if (firstConnected && !dontReconnect_) {
+                    return 0;
+                }
+
                 url_ = url;
 
                 XInfo("rtmp: connecting to %s, dontReconnect %d", url_.c_str(), dontReconnect_);
@@ -887,7 +891,7 @@ int RtmpSender::Send(IN const std::string& url, IN const std::shared_ptr<MediaPa
                         closeRtmpReset();
                         return -1;
                 }
-
+                firstConnected = true;
                 XInfo("rtmp: connection is established");
         }
 
