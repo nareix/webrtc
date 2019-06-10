@@ -201,11 +201,11 @@ namespace muxer
         {
         public:
                 RtmpSender(std::shared_ptr<XLogger> xl);
-
                 ~RtmpSender();
                 virtual int Send(IN const std::string& url, IN const std::shared_ptr<MediaPacket>& pPacket);
                 std::atomic<int64_t> bytesSent_;
                 
+                void SetDontReconnect(IN bool dontReconnect) {dontReconnect_ = dontReconnect;}
         private:
                 std::shared_ptr<XLogger> xl_ = nullptr;
                 // send audio
@@ -284,6 +284,7 @@ namespace muxer
                 bool useAnnexbConcatNalus_ = false;
                 bool keepSpsPpsInNalus_ = false;
                 bool dontSendMetadata_ = false;
+                bool dontReconnect_ = false;
 
                 // sequence header
                 std::shared_ptr<H264Nalu> pSps_ = nullptr;
@@ -306,6 +307,7 @@ namespace muxer
                 int videoFps = 25;
                 int videoMinRate = 0;
                 int videoMaxRate = 0;
+                bool dont_reconnect = false;
                 std::shared_ptr<XLogger> xl_ = nullptr;
 
         private:

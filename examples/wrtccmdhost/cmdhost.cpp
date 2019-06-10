@@ -48,6 +48,7 @@ const std::string mtSinkRawpkt = "on-sink-rawpkt";
 const std::string mtRawStreamSendPacket = "raw-stream-send-packet";
 const std::string mtSinkStats = "sink-stats";
 const std::string mtRequestKeyFrame = "request-key-frame";
+const std::string mtSinkDontReconnect = "stream-sink-dont-reconnect";
 
 static void parseOfferAnswerOpt(const Json::Value& v, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions& opt) {
     auto audio = v["audio"];
@@ -924,6 +925,25 @@ void CmdHost::handleRequestKeyFrame(const Json::Value& req, rtc::scoped_refptr<C
     observer->OnSuccess();
 }
 
+void CmdHost::handleSinkDontReconnect(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto stream = checkStream(jsonAsString(req[kId]), observer);
+    if (stream == NULL) {
+        return;
+    }
+
+    auto sink = stream->FindSink(jsonAsString(req[kSinkId]));
+    if (sink == NULL) {
+        observer->OnFailure(errInvalidParams, "sink not found");
+        return;
+    }
+
+    auto rtmpSink = static_cast<muxer::RtmpSink *>(sink);
+    if (rtmpSink != NULL) {
+        rtmpSink->dont_reconnect = jsonAsBool(req["dont_reconnect"]);
+    }
+    observer->OnSuccess();
+}
+
 class CmdDoneWriteResObserver: public CmdHost::CmdDoneObserver {
 public:
     CmdDoneWriteResObserver(rtc::scoped_refptr<MsgPump::Request> req) : req_(req) {}
@@ -990,6 +1010,8 @@ void CmdHost::handleReq(rtc::scoped_refptr<MsgPump::Request> req) {
         handleSinkStats(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));        
     } else if (type == mtRequestKeyFrame) {
         handleRequestKeyFrame(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
+    } else if (type == mtSinkDontReconnect) {
+        handleSinkDontReconnect(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     }
 }
 

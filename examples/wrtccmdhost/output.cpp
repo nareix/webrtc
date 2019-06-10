@@ -860,10 +860,10 @@ int RtmpSender::Send(IN const std::string& url, IN const std::shared_ptr<MediaPa
         }
 
         // connect to the server for the first time to send data
-        if (pRtmp_ != nullptr && RTMP_IsConnected(pRtmp_) == 0) {
+        if (pRtmp_ != nullptr && RTMP_IsConnected(pRtmp_) == 0 && !dontReconnect_) {
                 url_ = url;
 
-                XInfo("rtmp: connecting to %s", url_.c_str());
+                XInfo("rtmp: connecting to %s, dontReconnect %d", url_.c_str(), dontReconnect_);
 
                 if (RTMP_SetupURL(pRtmp_, const_cast<char*>(url_.c_str())) == 0) {
                         XError("rtmp: setup URL");
@@ -1440,6 +1440,7 @@ void RtmpSink::OnStart() {
                         }
                         XDebug("RtmpSinkSend type=%s dts=%d v=%zu a=%zu", packetStreamTypeString(send->Stream()), 
                                 int(send->Dts()), videobufQ_.Size(), audiobufQ_.Size());
+                        rtmpSender_->SetDontReconnect(dont_reconnect);
                         return rtmpSender_->Send(url_, send);
                 };
 
