@@ -1530,7 +1530,7 @@ void RtmpSink::OnStart() {
                                 }
                                 senddelay++;
 
-                                if (nStatus != 0) {
+                                if (nStatus != 0 && !dont_reconnect) {
                                         videobufQ_.Clear();
                                         audiobufQ_.Clear();
                                         rtmpSender_ = std::make_unique<RtmpSender>(xl_);
