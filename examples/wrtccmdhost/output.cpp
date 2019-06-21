@@ -1538,7 +1538,7 @@ void RtmpSink::OnStart() {
                                 }
                         }
 
-                        usleep(1e6*1.5);
+                        usleep(1e4);
                 }
 
                 rtmpSender_ = nullptr;
