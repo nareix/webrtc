@@ -296,6 +296,11 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     bool rawpkt() { return media_config.video.rawpkt; }
     void set_rawpkt(bool enable) { media_config.video.rawpkt = enable; }
 
+    void set_ice_port_range(int min_port, int max_port) {
+        ice_allocate_min_port = min_port;
+        ice_allocate_max_port = max_port;
+    }
+
     bool dump_rawpkt() { return media_config.video.dump_rawpkt; }
     void set_dump_rawpkt(bool enable) { media_config.video.dump_rawpkt = enable; }
 
@@ -487,6 +492,9 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     // called.
     webrtc::TurnCustomizer* turn_customizer = nullptr;
 
+    int ice_allocate_min_port = 0;
+
+    int ice_allocate_max_port = 0;
     //
     // Don't forget to update operator== if adding something.
     //

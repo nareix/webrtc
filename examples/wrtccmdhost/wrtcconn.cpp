@@ -121,7 +121,6 @@ public:
                 this->videopts_base = rtcframe.timestamp();
             }
             uint64_t timeDelta = (rtcframe.timestamp() - this->videopts_base) / 90;
-            DebugR("OnFrameVideo ts=%lf, videopts_base %lu, timeDelta %lu", id_.c_str(), elapsed_d.count(), this->videopts_base, timeDelta);
             frame->SetTimeStamp(timeDelta);
             SendFrame(frame);
 
@@ -239,7 +238,6 @@ public:
 
                     auto now = std::chrono::high_resolution_clock::now();
                     std::chrono::duration<double, std::ratio<1,1>> elapsed_d(now - start_ts_);
-                    DebugR("OnFrameAudio ts=%lf, pts:%lu", id_.c_str(), elapsed_d.count(), pkt->Pts());
 
                     b.WriteUInt8(1);
                     b.WriteUInt32(1);

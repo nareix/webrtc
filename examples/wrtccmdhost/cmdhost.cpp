@@ -17,6 +17,8 @@ const std::string errConnNotFoundString = "conn not found";
 const int errInvalidParams = 10003;
 const std::string errInvalidParamsString = "invalid params";
 
+const int maxPort = 65535;
+
 const std::string kSdpMLineIndex = "sdpMLineIndex";
 const std::string kSdpMid = "sdpMid";
 
@@ -171,6 +173,15 @@ void CmdHost::handleNewConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneOb
     if (jsonAsBool(req["dump_rawpkt"])) {
         rtcconf.set_dump_rawpkt(true);
     }
+
+    auto min_port = jsonAsInt(req["min_port"]);
+    auto max_port = jsonAsInt(req["max_port"]);
+    if (min_port < 0 || min_port > maxPort || max_port < 0 || max_port > maxPort || min_port > max_port) {
+        min_port = 0;
+        max_port = 0;
+    }
+
+    rtcconf.set_ice_port_range(min_port, max_port);
 
     if (ice_servers.isArray()) {
         webrtc::PeerConnectionInterface::IceServer icesrv = {};
