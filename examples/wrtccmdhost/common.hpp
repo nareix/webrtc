@@ -67,9 +67,9 @@ extern "C"
                 if ((unsigned int)(level) <= muxer::global::nLogLevel) { \
                         struct timeval tv;                              \
                         char timeFmt[32];                               \
-                        char reqstr[128] = {};                           \
-                        if (reqid != NULL) \
-                                sprintf(reqstr, "[%s]", (char *)reqid);         \
+                        char reqstr[256] = {};                          \
+                        if (reqid != NULL && strlen(reqid) < 256)       \
+                                sprintf(reqstr, "[%s]", (char *)reqid); \
                         gettimeofday(&tv, nullptr);                     \
                         strftime(timeFmt, sizeof(timeFmt), "%Y/%m/%d %H:%M:%S", localtime(&tv.tv_sec)); \
                         fprintf(stderr, "%s.%06lu %s[%s] %s:%d: " fmt "\n",     \
