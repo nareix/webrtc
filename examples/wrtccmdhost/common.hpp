@@ -69,7 +69,7 @@ extern "C"
                         char timeFmt[32];                               \
                         char reqstr[256] = {};                          \
                         if (reqid != NULL)                              \
-                                snprintf(reqstr, 256, "[%s]", (char *)reqid); \
+                                snprintf(reqstr, sizeof(reqstr), "[%s]", (char *)reqid); \
                         gettimeofday(&tv, nullptr);                     \
                         strftime(timeFmt, sizeof(timeFmt), "%Y/%m/%d %H:%M:%S", localtime(&tv.tv_sec)); \
                         fprintf(stderr, "%s.%06lu %s[%s] %s:%d: " fmt "\n",     \
