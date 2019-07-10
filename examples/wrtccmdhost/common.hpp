@@ -68,8 +68,8 @@ extern "C"
                         struct timeval tv;                              \
                         char timeFmt[32];                               \
                         char reqstr[256] = {};                          \
-                        if (reqid != NULL && strlen(reqid) < 256)       \
-                                sprintf(reqstr, "[%s]", (char *)reqid); \
+                        if (reqid != NULL)                              \
+                                snprintf(reqstr, 256, "[%s]", (char *)reqid); \
                         gettimeofday(&tv, nullptr);                     \
                         strftime(timeFmt, sizeof(timeFmt), "%Y/%m/%d %H:%M:%S", localtime(&tv.tv_sec)); \
                         fprintf(stderr, "%s.%06lu %s[%s] %s:%d: " fmt "\n",     \
