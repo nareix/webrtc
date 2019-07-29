@@ -36,6 +36,7 @@ namespace muxer
                 SwrContext* pSwr_ = nullptr; // for resampling
                 std::shared_ptr<XLogger> xl_;
 
+                static std::mutex lock_;
                 int nBitrate_ = 0;
         public:
                 bool useGlobalHeader = false;

@@ -5,6 +5,7 @@ using namespace muxer;
 //
 // AvEncoder
 //
+std::mutex AvEncoder::lock_;
 
 AvEncoder::AvEncoder(std::shared_ptr<XLogger> xl)
 {
@@ -77,13 +78,16 @@ int AvEncoder::Init(IN const std::shared_ptr<MediaFrame>& _pFrame)
         }
 
         // open encoder
-        if (avcodec_open2(pAvEncoderContext_, pAvCodec, nullptr) < 0) {
-                XError("could not open encoder");
-                pAvEncoderContext_ = nullptr;
-                return -1;
-        } else {
-                XInfo("open encoder: stream=%d, codec=%d", _pFrame->Stream(), _pFrame->Codec());
-                bIsEncoderAvailable_ = true;
+        {
+            std::lock_guard<std::mutex> lock(lock_);
+            if (avcodec_open2(pAvEncoderContext_, pAvCodec, nullptr) < 0) {
+                    XError("could not open encoder");
+                    pAvEncoderContext_ = nullptr;
+                    return -1;
+            } else {
+                    XInfo("open encoder: stream=%d, codec=%d", _pFrame->Stream(), _pFrame->Codec());
+                    bIsEncoderAvailable_ = true;
+            }
         }
 
         XInfo("encoder extradata_size=%d", pAvEncoderContext_->extradata_size);
