@@ -869,6 +869,11 @@ int RtmpSender::Send(IN const std::string& url, IN const std::shared_ptr<MediaPa
                     return 0;
                 }
 
+                if (firstConnected && bH264ConfigSent_) {
+                    XError("reconnect should sent config")
+                    return -1;
+                }
+
                 url_ = url;
 
                 XInfo("rtmp: connecting to %s, dontReconnect %d", url_.c_str(), dontReconnect_);
