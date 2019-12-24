@@ -333,16 +333,10 @@ VideoMuxer::VideoMuxer(IN int _nW, IN int _nH)
 {
         nCanvasW_ = _nW;
         nCanvasH_ = _nH;
-		
-		_bEnterMuxMode = 0;
-		_nFrameCount = 0;
-		_nFrameCountThreshold = 25*4;
 }
 
 VideoMuxer::~VideoMuxer()
 {
-	_bEnterMuxMode = 0;
-	_nFrameCount = 0;
 }
 
 void VideoMuxer::BgColor(int _nRGB)
@@ -389,53 +383,36 @@ int VideoMuxer::Mux(IN std::vector<std::shared_ptr<MediaFrame>>& _frames, OUT st
 
         _pOut = pMuxed;
 		
-		if (_bEnterMuxMode==0)
-		{
-			int bBgColor = isBgColor(_pOut);
-			if (bBgColor==0 || _nFrameCount>=_nFrameCountThreshold)
-				_bEnterMuxMode = 1;
-		}
+        if (!_bEnterMuxMode) {
+            if (!isBgBlack(_pOut) || _nFrameCount>=_nFrameCountThreshold) {
+                _bEnterMuxMode = true;
+                _nFrameCount = 0;
+            }
+        }
+
+        if (!_bEnterMuxMode) {
+            _nFrameCount++;
+            return -1;
+        }
 		
-		_nFrameCount++;
-		if (_bEnterMuxMode==0)
-			return -1;
-		else
-			return 0;
+        return 0;
 }
 
-int VideoMuxer::isBgColor(IN std::shared_ptr<MediaFrame>& pFrame)
+bool VideoMuxer::isBgBlack(IN std::shared_ptr<MediaFrame>& pFrame)
 {
-	uint8_t nR = nBackground_ >> 16;
-    uint8_t nG = (nBackground_ >> 8) & 0xff;
-    uint8_t nB = nBackground_ & 0xff;
+    uint8_t black = 0x000000;
+    uint8_t nR = black >> 16;
+    uint8_t nG = (black >> 8) & 0xff;
+    uint8_t nB = black & 0xff;
     uint8_t nY = static_cast<uint8_t>((0.257 * nR) + (0.504 * nG) + (0.098 * nB) + 16);
-    uint8_t nU = static_cast<uint8_t>((0.439 * nR) - (0.368 * nG) - (0.071 * nB) + 128);
-    uint8_t nV = static_cast<uint8_t>(-(0.148 * nR) - (0.291 * nG) + (0.439 * nB) + 128);
 	
-	int yflag = 1, uvflag = 1;
-	for ( int i=0; i<pFrame->AvFrame()->linesize[1] * nCanvasH_/2; i++ )
-	{
-		if ((pFrame->AvFrame()->data[1][i]!=nU) || (pFrame->AvFrame()->data[2][i]!=nV) )
-		{
-			uvflag = 0;
-			break;
-		}
-	}
-	if (uvflag==0)
-		return 0;
+    for (int i=0; i<pFrame->AvFrame()->linesize[0] * nCanvasH_; i++) {
+        if (pFrame->AvFrame()->data[0][i]!=nY) {
+            return false;
+        }
+    }
 	
-	for ( int i=0; i<pFrame->AvFrame()->linesize[0] * nCanvasH_; i++ )
-	{
-		if (pFrame->AvFrame()->data[0][i]!=nY)
-		{
-			yflag = 0;
-			break;
-		}
-	}
-	if (yflag==0)
-		return 0;
-	
-	return 1;
+    return true;
 }
 
 //

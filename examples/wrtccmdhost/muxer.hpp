@@ -15,12 +15,13 @@ namespace muxer
                 int Mux(IN std::vector<std::shared_ptr<MediaFrame>>& frames, OUT std::shared_ptr<MediaFrame>&);
                 void BgColor(int nRGB);
         private:
+                bool isBgBlack(IN std::shared_ptr<MediaFrame>& pFrame);
+
                 int nCanvasW_ = 0, nCanvasH_ = 0;
                 int nBackground_ = 0x000000; // black
 				
-				int isBgColor(IN std::shared_ptr<MediaFrame>& pFrame);
-				int _bEnterMuxMode;
-				int _nFrameCount, _nFrameCountThreshold;
+                bool _bEnterMuxMode = false;
+                int _nFrameCount = 0, _nFrameCountThreshold = 100; // four second
         };
 
         class AudioMixer
