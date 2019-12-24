@@ -17,6 +17,10 @@ namespace muxer
         private:
                 int nCanvasW_ = 0, nCanvasH_ = 0;
                 int nBackground_ = 0x000000; // black
+				
+				int isBgColor(IN std::shared_ptr<MediaFrame>& pFrame);
+				int _bEnterMuxMode;
+				int _nFrameCount, _nFrameCountThreshold;
         };
 
         class AudioMixer
