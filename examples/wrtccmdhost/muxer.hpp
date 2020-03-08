@@ -21,7 +21,7 @@ namespace muxer
                 int nBackground_ = 0x000000; // black
 				
                 bool _bEnterMuxMode = false;
-                int _nFrameCount = 0, _nFrameCountThreshold = 50; // four second
+                int _nFrameCount = 0, _nFrameCountThreshold = 50;
         };
 
         class AudioMixer
