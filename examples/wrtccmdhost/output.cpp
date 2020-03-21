@@ -169,6 +169,12 @@ int AvEncoder::PresetH264(IN const std::shared_ptr<MediaFrame>& _pFrame)
                 pAvEncoderContext_->bit_rate = 800 * 1000; // bps
         }
 
+        if (nMinRate_ == nMaxRate_ && nMinRate_ == nBitrate_) {
+                pAvEncoderContext_->rc_buffer_size = nBitrate_ * 1000; //bps
+                pAvEncoderContext_->rc_initial_buffer_occupancy = nBitrate_ * 1000 * 3/4; //bps
+                pAvEncoderContext_->bit_rate_tolerance = nBitrate_ * 1000; //bps
+        }
+
         //pAvEncoderContext_->thread_type = FF_THREAD_FRAME;
 
         // set params
