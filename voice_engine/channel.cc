@@ -1001,7 +1001,7 @@ void Channel::OnRtpPacket(const RtpPacketReceived& packet) {
         header, packet.size(), IsPacketRetransmitted(header, in_order));
     rtp_payload_registry_->SetIncomingPayloadType(header);
 
-    ReceivePacket(packet.data(), packet.size(), header);
+    ReceivePacket(packet.data(), packet.size() - 2, header);
   }
 }
 
