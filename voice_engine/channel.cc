@@ -60,6 +60,7 @@ constexpr int64_t kMinRetransmissionWindowMs = 30;
 }  // namespace
 
 const int kTelephoneEventAttenuationdB = 10;
+const int kQNSignLength = 6;
 
 class RtcEventLogProxy final : public webrtc::RtcEventLog {
  public:
@@ -1001,8 +1002,31 @@ void Channel::OnRtpPacket(const RtpPacketReceived& packet) {
         header, packet.size(), IsPacketRetransmitted(header, in_order));
     rtp_payload_registry_->SetIncomingPayloadType(header);
 
-    ReceivePacket(packet.data(), packet.size() - 2, header);
+    uint32_t length = GetExtraDataLength(packet.data(), packet.size());
+    ReceivePacket(packet.data(), packet.size() - length, header);
   }
+}
+
+uint32_t Channel::GetExtraDataLength(const uint8_t* packet, size_t packet_length) {
+  // suffix
+  // 06 05 04 03 02 01
+  // Q  N  < length >
+  if (packet_length > kQNSignLength) {
+    std::string str((char *)packet, 2);
+    transform(str.begin(), str.end(), str.begin(), toupper);
+    if (str == "QN") {
+      uint32_t extra_size = 0;
+      for (int i = 4; i > 0; i--) {
+        extra_size += packet[packet_length-i]<<((i-1)*8);
+      }
+
+      if (extra_size+kQNSignLength < packet_length) {
+        return extra_size+kQNSignLength;
+      }
+    }
+  }
+
+  return 0;
 }
 
 bool Channel::ReceivePacket(const uint8_t* packet,
