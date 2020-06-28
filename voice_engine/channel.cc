@@ -1012,13 +1012,10 @@ uint32_t Channel::GetExtraDataLength(const uint8_t* packet, size_t packet_length
   // 06 05 04 03 02 01
   // Q  N  < length >
   if (packet_length > kQNSignLength) {
-    std::string str((char *)packet, 2);
-    transform(str.begin(), str.end(), str.begin(), toupper);
+    std::string str((char *)packet+packet_length-kQNSignLength, 2);
+    transform(str.begin(), str.end(), str.begin(), ::toupper);
     if (str == "QN") {
-      uint32_t extra_size = 0;
-      for (int i = 4; i > 0; i--) {
-        extra_size += packet[packet_length-i]<<((i-1)*8);
-      }
+      uint32_t extra_size = rtc::GetBE32(&packet[packet_length-4]);
 
       if (extra_size+kQNSignLength < packet_length) {
         return extra_size+kQNSignLength;
