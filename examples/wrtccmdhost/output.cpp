@@ -117,6 +117,7 @@ int AvEncoder::PresetAac(IN const std::shared_ptr<MediaFrame>& _pFrame)
         pAvEncoderContext_->sample_rate = _pFrame->AvFrame()->sample_rate;
         pAvEncoderContext_->channels = _pFrame->AvFrame()->channels;
         pAvEncoderContext_->channel_layout = av_get_default_channel_layout(_pFrame->AvFrame()->channels);
+        pAvEncoderContext_->profile = FF_PROFILE_AAC_LOW;
 
         if (nBitrate_ > 0) {
                 pAvEncoderContext_->bit_rate = nBitrate_ * 1000;
