@@ -440,8 +440,11 @@ void Input::SetVideo(const std::shared_ptr<MediaFrame>& _pFrame)
                 if (nH != pRescaler_->TargetH()) {
                         bNeedRescale = true;
                 }
+                if (stretchMode != pRescaler_->TargetbStretchMode()) {
+                        bNeedRescale = true;
+                }
                 if (bNeedRescale) {
-                        pRescaler_->Reset(nW, nH);
+                        pRescaler_->Reset(nW, nH, stretchMode);
                 }
         }
 

@@ -257,6 +257,25 @@ int VideoRescaler::Reset(IN int _nWidth, IN int _nHeight, IN const AVPixelFormat
         return 0;
 }
 
+//overload function Reset
+int VideoRescaler::Reset(IN int _nWidth, IN int _nHeight, IN int _bStretchMode){
+        if (_nWidth <= 0 || _nHeight <= 0) {
+                XError("rescale: resize to width=%d, height=%d", _nWidth, _nHeight);
+                return -1;
+        }
+
+        nW_ = _nWidth;
+        nH_ = _nHeight;
+        bStretchMode_ = _bStretchMode;
+
+        if (pSws_ != nullptr) {
+                sws_freeContext(pSws_);
+                pSws_ = nullptr;
+        }
+
+        return 0;
+}
+
 int VideoRescaler::Init(IN const std::shared_ptr<MediaFrame>& _pFrame)
 {
         if (pSws_ != nullptr) {
@@ -347,7 +366,7 @@ int VideoRescaler::Rescale(IN const std::shared_ptr<MediaFrame>& _pInFrame, OUT 
                         _pInFrame->AvFrame()->width, _pInFrame->AvFrame()->height, 
                         av_get_pix_fmt_name((AVPixelFormat)_pInFrame->AvFrame()->format)
                 );
-                if (Reset(nW_, nH_, format_) != 0) {
+                if (Reset(nW_, nH_, format_, bStretchMode_) != 0) {
                         XError("rescaler: reinit failed");
                         return -2;
                 }
@@ -392,6 +411,10 @@ int VideoRescaler::TargetW()
 int VideoRescaler::TargetH()
 {
         return nH_;
+}
+
+int VideoRescaler::TargetbStretchMode(){
+        return bStretchMode_;
 }
 
 void sound::Gain(INOUT const std::shared_ptr<MediaFrame>& _pFrame, IN int _nPercent)

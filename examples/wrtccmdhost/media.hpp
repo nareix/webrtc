@@ -51,8 +51,10 @@ namespace muxer
                 int Rescale(IN const std::shared_ptr<MediaFrame>& pInFrame, OUT std::shared_ptr<MediaFrame>& pOutFrame);
                 int Reset(IN int nWidth, IN int nHeight, IN const AVPixelFormat format = VideoRescaler::PIXEL_FMT,
                           IN int bStretchMode = STRETCH_DEFAULT, IN int nBgColor = 0x0);
+                int Reset(IN int nWidth, IN int nHeight, IN int bStretchMode);
                 int TargetW();
                 int TargetH();
+                int TargetbStretchMode();
         private:
                 int Init(IN const std::shared_ptr<MediaFrame>& pFrame);
         private:
