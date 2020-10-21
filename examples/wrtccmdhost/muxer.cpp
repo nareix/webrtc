@@ -138,6 +138,20 @@ int AvMuxer::RemoveOutput(IN const std::string& _key)
         return 0;
 }
 
+int AvMuxer::PrintInputs()
+{
+        inputs_.Foreach([](std::shared_ptr<Input>& _pInput) -> bool {
+                        int x=0,y=0,z=0,w=0,h=0;
+                        _pInput->GetOption(options::x, x);
+                        _pInput->GetOption(options::y, y);
+                        _pInput->GetOption(options::z, z);
+                        _pInput->GetOption(options::width, w);
+                        _pInput->GetOption(options::height, h);
+                        Info("AvMuxer Input id:%s, x:%d, y:%d, w:%d, h:%d, z:%d", _pInput->Name().c_str(), x, y, w, h, z);
+                        return true;
+                });
+        return 0;
+}
 
 int AvMuxer::AddInput(IN const std::string& _name, IN SinkAddRemover *stream)
 {

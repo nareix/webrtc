@@ -535,6 +535,7 @@ void CmdHost::handleLibmuxerAddInput(const Json::Value& req, rtc::scoped_refptr<
 
     m->AddInput(id, stream);
     libmuxerSetInputOpt(m->FindInput(id), req["opt"]);
+    m->PrintInputs();
 
     Json::Value res;
     res[kId] = id;

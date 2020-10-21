@@ -53,6 +53,7 @@ namespace muxer
                 int RemoveInput(IN const std::string& name);
 
                 int Start();
+                int PrintInputs();
         public:
                 std::shared_ptr<Input> FindInput(IN const std::string& name);
                 std::shared_ptr<Output> FindOutput(IN const std::string& name);
