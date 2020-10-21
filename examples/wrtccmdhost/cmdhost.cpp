@@ -16,6 +16,10 @@ const int errConnNotFound = 10002;
 const std::string errConnNotFoundString = "conn not found";
 const int errInvalidParams = 10003;
 const std::string errInvalidParamsString = "invalid params";
+const int errStreamNotFound = 10004;
+const std::string errStreamNotFoundString = "stream not found";
+const int errMuxerNotFound = 10005;
+const std::string errMuxerNotFoundString = "muxer not found";
 
 const int maxPort = 65535;
 
@@ -225,7 +229,7 @@ Stream* CmdHost::checkStream(const std::string& id, rtc::scoped_refptr<CmdDoneOb
         stream = streams_map_[id];
     }
     if (stream == NULL) {
-        observer->OnFailure(errInvalidParams, "stream not found");
+        observer->OnFailure(errStreamNotFound, errStreamNotFoundString);
         return NULL;
     }
     return stream;
@@ -417,7 +421,7 @@ muxer::AvMuxer* CmdHost::checkLibmuxer(const Json::Value& req, rtc::scoped_refpt
     }
 
     if (m == NULL) {
-        observer->OnFailure(errInvalidParams, "libmuxer not found");
+        observer->OnFailure(errMuxerNotFound, errMuxerNotFoundString);
         return NULL;
     }
 
