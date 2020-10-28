@@ -140,16 +140,19 @@ int AvMuxer::RemoveOutput(IN const std::string& _key)
 
 int AvMuxer::PrintInputs()
 {
-        inputs_.Foreach([](std::shared_ptr<Input>& _pInput) -> bool {
-                        int x=0,y=0,z=0,w=0,h=0;
+        inputs_.Foreach([this](std::shared_ptr<Input>& _pInput) -> bool {
+                        int x=0,y=0,z=0,w=0,h=0,hidden=2;
                         _pInput->GetOption(options::x, x);
                         _pInput->GetOption(options::y, y);
                         _pInput->GetOption(options::z, z);
                         _pInput->GetOption(options::width, w);
                         _pInput->GetOption(options::height, h);
-                        Info("AvMuxer Input id:%s, x:%d, y:%d, w:%d, h:%d, z:%d", _pInput->Name().c_str(), x, y, w, h, z);
+                        _pInput->GetOption(options::hidden, hidden);
+                        Info("AvMuxer %p Input id:%s, x:%d, y:%d, w:%d, h:%d, z:%d, hidden:%d", this, _pInput->Name().c_str(), x, y, w, h, z, hidden);
                         return true;
                 });
+
+        Info("AvMuxer %p, length %zu", this, inputs_.Size());
         return 0;
 }
 
@@ -392,6 +395,8 @@ int VideoMuxer::Mux(IN std::vector<std::shared_ptr<MediaFrame>>& _frames, OUT st
                         Warn("internal: got 1 null frame, something was wrong");
                         continue;
                 }
+                auto bgColor = isBgColor(pFrame);
+                Info("VideoMuxer frame is bgColor %d, x:%d, y:%d, w:%d, h:%d, z:%d, Muxed w:%d, h:%d", bgColor, pFrame->X(), pFrame->Y(), pFrame->AvFrame()->width, pFrame->AvFrame()->height, pFrame->Z(), nCanvasW_, nCanvasH_);
                 merge::Overlay(pFrame, pMuxed, true);
         }
 
