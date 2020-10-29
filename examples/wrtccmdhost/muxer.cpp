@@ -397,8 +397,9 @@ int VideoMuxer::Mux(IN std::vector<std::shared_ptr<MediaFrame>>& _frames, OUT st
                         Warn("internal: got 1 null frame, something was wrong");
                         continue;
                 }
-                auto bgColor = isBgColor(pFrame);
-                Info("VideoMuxer frame is bgColor %d, x:%d, y:%d, w:%d, h:%d, z:%d, Muxed w:%d, h:%d", bgColor, pFrame->X(), pFrame->Y(), pFrame->AvFrame()->width, pFrame->AvFrame()->height, pFrame->Z(), nCanvasW_, nCanvasH_);
+                if (isBgColor(pFrame)) {
+                        Info("VideoMuxer frame is bgColor, x:%d, y:%d, w:%d, h:%d, z:%d, Muxed w:%d, h:%d", pFrame->X(), pFrame->Y(), pFrame->AvFrame()->width, pFrame->AvFrame()->height, pFrame->Z(), nCanvasW_, nCanvasH_);        
+                }
                 merge::Overlay(pFrame, pMuxed, true);
         }
 
