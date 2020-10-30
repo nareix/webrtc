@@ -232,10 +232,8 @@ namespace muxer
                 virtual ~OptionMap() {}
         protected:
                 std::unordered_map<std::string, std::string> params_;
-                std::mutex paramsLck_;
-
                 std::unordered_map<std::string, int> intparams_;
-                std::mutex intparamsLck_;
+                std::mutex paramsLck_;
         };
 
         typedef OptionMap Option;

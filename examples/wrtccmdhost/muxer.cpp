@@ -20,7 +20,7 @@ bool OptionMap::GetOption(IN const std::string& _key, OUT std::string& _value)
 
 bool OptionMap::GetOption(IN const std::string& _key, OUT int& _value)
 {
-        std::lock_guard<std::mutex> lock(intparamsLck_);
+        std::lock_guard<std::mutex> lock(paramsLck_);
 
         auto it = intparams_.find(_key);
         if (it != intparams_.end()) {
@@ -69,6 +69,8 @@ void OptionMap::DelOption(IN const std::string& _key)
 
 void OptionMap::GetOptions(IN const OptionMap& _opts)
 {
+        std::lock_guard<std::mutex> lock(paramsLck_);
+
         params_ = _opts.params_;
         intparams_ = _opts.intparams_;
 }
@@ -148,11 +150,11 @@ int AvMuxer::PrintInputs()
                         _pInput->GetOption(options::width, w);
                         _pInput->GetOption(options::height, h);
                         _pInput->GetOption(options::hidden, hidden);
-                        Info("AvMuxer %p Input id:%s, x:%d, y:%d, w:%d, h:%d, z:%d, hidden:%d", this, _pInput->Name().c_str(), x, y, w, h, z, hidden);
+                        XInfo("AvMuxer %p Input id:%s, x:%d, y:%d, w:%d, h:%d, z:%d, hidden:%d", this, _pInput->Name().c_str(), x, y, w, h, z, hidden);
                         return true;
                 });
 
-        Info("AvMuxer %p, length %zu", this, inputs_.Size());
+        XInfo("AvMuxer %p, length %zu", this, inputs_.Size());
         return 0;
 }
 
@@ -315,7 +317,7 @@ int AvMuxer::Start()
                                 DebugPCM("/tmp/rtc.mix.s16", pOutFrame->AvFrame()->data[0], pOutFrame->AvFrame()->linesize[0]);
                                 FeedOutputs(pOutFrame, pts);
                                 audioFrames.clear();
-                                
+
                                 pts += frame_dur;
                                 diff -= frame_dur;
                         }
@@ -396,7 +398,7 @@ int VideoMuxer::Mux(IN std::vector<std::shared_ptr<MediaFrame>>& _frames, OUT st
                         continue;
                 }
                 if (isBgColor(pFrame)) {
-                        Info("VideoMuxer frame is bgColor, x:%d, y:%d, w:%d, h:%d, z:%d, Muxed w:%d, h:%d", pFrame->X(), pFrame->Y(), pFrame->AvFrame()->width, pFrame->AvFrame()->height, pFrame->Z(), nCanvasW_, nCanvasH_);        
+                        Info("VideoMuxer frame is bgColor, x:%d, y:%d, w:%d, h:%d, z:%d, Muxed w:%d, h:%d", pFrame->X(), pFrame->Y(), pFrame->AvFrame()->width, pFrame->AvFrame()->height, pFrame->Z(), nCanvasW_, nCanvasH_);
                 }
                 merge::Overlay(pFrame, pMuxed, true);
         }
@@ -413,7 +415,7 @@ int VideoMuxer::Mux(IN std::vector<std::shared_ptr<MediaFrame>>& _frames, OUT st
         if (!_bEnterMuxMode) {
             return -1;
         }
-		
+
         return 0;
 }
 
@@ -430,13 +432,13 @@ bool VideoMuxer::isBgColor(IN std::shared_ptr<MediaFrame>& pFrame)
             return false;
         }
     }
-	
+
     for (int i=0; i<pFrame->AvFrame()->linesize[0] * nCanvasH_; i++) {
         if (pFrame->AvFrame()->data[0][i]!=nY) {
             return false;
         }
     }
-	
+
     return true;
 }
 
