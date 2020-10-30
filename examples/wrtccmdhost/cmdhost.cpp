@@ -71,7 +71,7 @@ void CmdHost::Run() {
     wrtc_signal_thread_.Start();
     wrtc_work_thread_.Start();
     pc_factory_ = webrtc::CreatePeerConnectionFactory(
-        &wrtc_work_thread_, &wrtc_work_thread_, &wrtc_signal_thread_, 
+        &wrtc_work_thread_, &wrtc_work_thread_, &wrtc_signal_thread_,
         nullptr, nullptr, nullptr
     );
     Info("wrtc_work_thread_ %p", &wrtc_work_thread_);
@@ -211,7 +211,7 @@ void CmdHost::handleNewConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneOb
     auto conn_observer = new ConnObserver(this);
     auto conn = new WRTCConn(pc_factory_, rtcconf, conn_observer, &wrtc_signal_thread_);
     conn_observer->id_ = conn->ID();
-    
+
     {
         std::lock_guard<std::mutex> lock(conn_map_lock_);
         conn_map_[conn->ID()] = conn;
@@ -226,12 +226,17 @@ Stream* CmdHost::checkStream(const std::string& id, rtc::scoped_refptr<CmdDoneOb
     Stream *stream = NULL;
     {
         std::lock_guard<std::mutex> lock(streams_map_lock_);
-        stream = streams_map_[id];
+        auto it = streams_map_.find(id);
+        if (it != streams_map_.end()) {
+            stream = streams_map_.at(id);
+        }
     }
     if (stream == NULL) {
         observer->OnFailure(errStreamNotFound, errStreamNotFoundString);
         return NULL;
     }
+
+    Info("stream id: %s, address: %p", id.c_str(), stream);
     return stream;
 }
 
@@ -245,13 +250,17 @@ WRTCConn* CmdHost::checkConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneO
     WRTCConn *conn = NULL;
     {
         std::lock_guard<std::mutex> lock(conn_map_lock_);
-        conn = conn_map_[id.asString()];
+        auto it = conn_map_.find(id.asString());
+        if (it != conn_map_.end()) {
+            conn = conn_map_.at(id.asString());
+        }
     }
     if (conn == NULL) {
         observer->OnFailure(errConnNotFound, errConnNotFoundString);
-        return NULL;    
+        return NULL;
     }
 
+    Info("conn id: %s, address: %p", id.asCString(), conn);
     return conn;
 }
 
@@ -322,7 +331,7 @@ void CmdHost::handleSetLocalDesc(const Json::Value& req, rtc::scoped_refptr<CmdH
     }
 
     webrtc::SdpParseError err;
-    auto desc = CreateSessionDescription(type, sdp, &err); 
+    auto desc = CreateSessionDescription(type, sdp, &err);
     if (!desc) {
         observer->OnFailure(errInvalidParams, err.description);
         return;
@@ -345,7 +354,7 @@ void CmdHost::handleSetRemoteDesc(const Json::Value& req, rtc::scoped_refptr<Cmd
     }
 
     webrtc::SdpParseError err;
-    auto desc = CreateSessionDescription(type, sdp, &err); 
+    auto desc = CreateSessionDescription(type, sdp, &err);
     if (!desc) {
         observer->OnFailure(errInvalidParams, err.description);
         return;
@@ -362,7 +371,7 @@ void CmdHost::handleSetRemoteDescCreateAnswer(const Json::Value& req, rtc::scope
 
     std::string sdp = jsonAsString(req[kSdp]);
     webrtc::SdpParseError err;
-    auto desc = CreateSessionDescription("offer", sdp, &err); 
+    auto desc = CreateSessionDescription("offer", sdp, &err);
     if (!desc) {
         observer->OnFailure(errInvalidParams, err.description);
         return;
@@ -417,7 +426,10 @@ muxer::AvMuxer* CmdHost::checkLibmuxer(const Json::Value& req, rtc::scoped_refpt
     muxer::AvMuxer *m = NULL;
     {
         std::lock_guard<std::mutex> lock(muxers_map_lock_);
-        m = muxers_map_[id.asString()];
+        auto it = muxers_map_.find(id.asString());
+        if (it != muxers_map_.end()) {
+            m = muxers_map_.at(id.asString());
+        }
     }
 
     if (m == NULL) {
@@ -425,6 +437,7 @@ muxer::AvMuxer* CmdHost::checkLibmuxer(const Json::Value& req, rtc::scoped_refpt
         return NULL;
     }
 
+    Info("libmuxer id: %s, address: %p", id.asCString(), m);
     return m;
 }
 
@@ -796,7 +809,7 @@ void CmdHost::handleNewUrlStream(const Json::Value& req, rtc::scoped_refptr<CmdD
     }
     Json::Value res;
     res[kId] = stream_id;
-    observer->OnSuccess(res);    
+    observer->OnSuccess(res);
 }
 
 void CmdHost::handleNewCanvasStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
@@ -834,7 +847,7 @@ void CmdHost::handleConnAddStream(const Json::Value& req, rtc::scoped_refptr<Cmd
     if (conn == NULL) {
         return;
     }
-    
+
     auto stream = checkStream(jsonAsString(req["stream_id"]), observer);
     if (stream == NULL) {
         return;
@@ -890,7 +903,7 @@ void CmdHost::handleNewRawStream(const Json::Value& req, rtc::scoped_refptr<CmdD
     }
     Json::Value res;
     res[kId] = stream_id;
-    observer->OnSuccess(res);    
+    observer->OnSuccess(res);
 }
 
 void CmdHost::handleRawStreamSendPacket(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
@@ -1015,7 +1028,7 @@ void CmdHost::handleReq(rtc::scoped_refptr<MsgPump::Request> req) {
     } else if (type == mtConnAddStream) {
         handleConnAddStream(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtNewUrlStream) {
-        handleNewUrlStream(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));       
+        handleNewUrlStream(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtConnStats) {
         handleConnStats(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtNewRawStream) {
@@ -1023,7 +1036,7 @@ void CmdHost::handleReq(rtc::scoped_refptr<MsgPump::Request> req) {
     } else if (type == mtRawStreamSendPacket) {
         handleRawStreamSendPacket(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtSinkStats) {
-        handleSinkStats(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));        
+        handleSinkStats(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtRequestKeyFrame) {
         handleRequestKeyFrame(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtSinkDontReconnect) {
