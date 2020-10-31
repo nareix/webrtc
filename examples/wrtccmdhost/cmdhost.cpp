@@ -228,7 +228,7 @@ Stream* CmdHost::checkStream(const std::string& id, rtc::scoped_refptr<CmdDoneOb
         std::lock_guard<std::mutex> lock(streams_map_lock_);
         auto it = streams_map_.find(id);
         if (it != streams_map_.end()) {
-            stream = streams_map_.at(id);
+            stream = it->second;
         }
     }
     if (stream == NULL) {
@@ -236,7 +236,6 @@ Stream* CmdHost::checkStream(const std::string& id, rtc::scoped_refptr<CmdDoneOb
         return NULL;
     }
 
-    Info("stream id: %s, address: %p", id.c_str(), stream);
     return stream;
 }
 
@@ -252,7 +251,7 @@ WRTCConn* CmdHost::checkConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneO
         std::lock_guard<std::mutex> lock(conn_map_lock_);
         auto it = conn_map_.find(id.asString());
         if (it != conn_map_.end()) {
-            conn = conn_map_.at(id.asString());
+            conn = it->second;
         }
     }
     if (conn == NULL) {
@@ -260,7 +259,6 @@ WRTCConn* CmdHost::checkConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneO
         return NULL;
     }
 
-    Info("conn id: %s, address: %p", id.asCString(), conn);
     return conn;
 }
 
@@ -428,7 +426,7 @@ muxer::AvMuxer* CmdHost::checkLibmuxer(const Json::Value& req, rtc::scoped_refpt
         std::lock_guard<std::mutex> lock(muxers_map_lock_);
         auto it = muxers_map_.find(id.asString());
         if (it != muxers_map_.end()) {
-            m = muxers_map_.at(id.asString());
+            m = it->second;
         }
     }
 
@@ -437,7 +435,6 @@ muxer::AvMuxer* CmdHost::checkLibmuxer(const Json::Value& req, rtc::scoped_refpt
         return NULL;
     }
 
-    Info("libmuxer id: %s, address: %p", id.asCString(), m);
     return m;
 }
 

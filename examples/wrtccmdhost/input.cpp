@@ -262,7 +262,7 @@ private:
 
 void Input::Start(IN SinkAddRemover *stream) {
         stream_ = stream;
-        
+
         sink_ = new InputSinkObserver(this);
         sink_id_ = newReqId();
         stream_->AddSink(sink_id_, sink_);
