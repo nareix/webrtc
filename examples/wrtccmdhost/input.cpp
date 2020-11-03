@@ -448,12 +448,16 @@ void Input::SetVideo(const std::shared_ptr<MediaFrame>& _pFrame)
                 }
         }
 
-        // rescale the video frame
-        auto pFrame = _pFrame;
+
+        std::shared_ptr<MediaFrame> pFrame;
         if (pRescaler_ != nullptr) {
+                // rescale and copy the video frame
                 pRescaler_->Rescale(_pFrame, pFrame);
+                pFrame->AvFrame()->pts = _pFrame->AvFrame()->pts;
+        } else {
+                // copy the video frame
+                pFrame = std::make_shared<MediaFrame>(*(_pFrame.get()));
         }
-        pFrame->AvFrame()->pts = _pFrame->AvFrame()->pts;
 
         // set x,y,z coordinate
         int nX, nY, nZ;
