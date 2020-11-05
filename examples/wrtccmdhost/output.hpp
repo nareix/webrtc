@@ -208,6 +208,7 @@ namespace muxer
                 std::atomic<int64_t> bytesSent_;
                 
                 void SetDontReconnect(IN bool dontReconnect) {dontReconnect_ = dontReconnect;}
+                void SetSeiKey(IN const std::string& key) {seiKey_ = key;}
         private:
                 std::shared_ptr<XLogger> xl_ = nullptr;
                 // send audio
@@ -280,6 +281,9 @@ namespace muxer
                 // URL target rtmp server
                 std::string url_;
 
+                // SEIQueue key
+                std::string seiKey_;
+
                 // RTMP object from RTMP dump
                 RTMP* pRtmp_ = nullptr;
                 std::shared_ptr<FlvFile> pFlvFile_ = nullptr;
@@ -304,6 +308,9 @@ namespace muxer
                 void OnStatBytes(int64_t& bytes) {
                         bytes = rtmpSender_->bytesSent_.exchange(0);
                 }
+                void SetSeiKey(const std::string &key) {
+                        rtmpSender_->SetSeiKey(key);
+                }
 
                 int videoKbps = 1000;
                 int videoGop = 50;
@@ -314,7 +321,7 @@ namespace muxer
                 std::shared_ptr<XLogger> xl_ = nullptr;
 
         private:
-                std::shared_ptr<RtmpSender> rtmpSender_; 
+                std::shared_ptr<RtmpSender> rtmpSender_;
                 std::string url_;
                 std::thread senderThread_;
                 std::atomic<bool> bSenderExit_;

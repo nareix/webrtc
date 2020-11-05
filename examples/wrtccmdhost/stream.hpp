@@ -13,10 +13,12 @@ public:
     virtual void OnStatBytes(int64_t& bytes) {};
     virtual void SetRequestKeyFrame(bool req) { need_requestKeyFrame = req;}
     virtual bool GetRequestKeyFrame() { return need_requestKeyFrame; }
+    virtual void SetSEIKey(std::string& key) { seikey_ = key;}
     virtual ~SinkObserver() {}
 
 private:
     std::string id_;
+    std::string seikey_;
     bool need_requestKeyFrame;
 };
 

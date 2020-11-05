@@ -59,6 +59,11 @@ namespace muxer
                 std::shared_ptr<Output> FindOutput(IN const std::string& name);
                 void FeedOutputs(IN std::shared_ptr<MediaFrame>& pFrame, IN double pts);
 
+                std::shared_ptr<Output> GetDefaultOutput();
+                void SetInputKey(IN const std::string &id, IN const std::string &key);
+                std::string GetInputKey(IN const std::string &id);
+                void RemoveInputKey(IN const std::string &id);
+
                 std::atomic<bool> audioOnly_;
                 int fps_ = 25;
 
@@ -66,6 +71,8 @@ namespace muxer
                 std::shared_ptr<XLogger> xl_ = nullptr;
                 SharedQueue<std::shared_ptr<Input>> inputs_;
                 SharedQueue<std::shared_ptr<Output>> outputs_;
+
+                std::map<std::string, std::string> inputKeys_;
 
                 std::thread videoMuxerThread_;
                 std::thread audioMuxerThread_;

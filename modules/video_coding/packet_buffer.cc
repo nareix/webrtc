@@ -119,8 +119,10 @@ bool PacketBuffer::InsertPacket(VCMPacket* packet) {
     found_frames = FindFrames(seq_num);
   }
 
-  for (std::unique_ptr<RtpFrameObject>& frame : found_frames)
+  for (std::unique_ptr<RtpFrameObject>& frame : found_frames){
+    frame->SetSSRC(packet->ssrc);
     received_frame_callback_->OnReceivedFrame(std::move(frame));
+  }
 
   return true;
 }

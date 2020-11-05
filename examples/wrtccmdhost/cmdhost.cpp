@@ -5,9 +5,12 @@
 
 #include "rtc_base/base64.h"
 
+const std::string kReqid = "reqid";
 const std::string kId = "id";
-const std::string kStreamId = "streamId";
-const std::string kSinkId = "sinkId";
+const std::string kStreamId = "stream_id";
+const std::string kSinkId = "sink_id";
+const std::string kSupportSEI = "supportsei";
+const std::string kSEIKey = "sei_key";
 const std::string kCode = "code";
 const std::string kError = "error";
 const std::string kSdp = "sdp";
@@ -55,6 +58,7 @@ const std::string mtRawStreamSendPacket = "raw-stream-send-packet";
 const std::string mtSinkStats = "sink-stats";
 const std::string mtRequestKeyFrame = "request-key-frame";
 const std::string mtSinkDontReconnect = "stream-sink-dont-reconnect";
+const std::string mtSinkSEIKey = "stream-sink-sei-key";
 
 static void parseOfferAnswerOpt(const json& v, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions& opt) {
     auto audioIt = v.find("audio");
@@ -504,11 +508,8 @@ void CmdHost::handleNewLibmuxer(const json& req, rtc::scoped_refptr<CmdHost::Cmd
         return;
     }
 
-    std::string reqid;
-    auto reqidIt = req.find("reqid");
-    if (reqidIt != req.end() && reqidIt->is_string() && !reqidIt->get<std::string>().empty()) {
-        reqid = reqidIt->get<std::string>();
-    } else {
+    auto reqid = jsonAsString(req[kReqid]);
+    if (reqid == "") {
         reqid = newReqId();
     }
 
@@ -628,6 +629,23 @@ void CmdHost::handleLibmuxerAddInput(const json& req, rtc::scoped_refptr<CmdDone
         return;
     }
 
+    std::string key = "";
+    auto support = jsonAsBool(req[kSupportSEI]);
+    if (support) {
+        auto reqid = jsonAsString(req[kReqid]);
+        key = id + "." + reqid;
+        std::list<AVPacket *>* queue = new std::list<AVPacket *>;
+        auto iter = SeiQueues.find(key);
+        if (iter != SeiQueues.end()) {
+            if (iter->second) {
+                free(iter->second);
+            }
+            SeiQueues.erase(iter);
+        }
+        SeiQueues.emplace(std::make_pair(key, queue));
+        m->SetInputKey(id, key);
+    }
+
     m->AddInput(id, stream);
 
     auto optIt = req.find("opt");
@@ -639,6 +657,7 @@ void CmdHost::handleLibmuxerAddInput(const json& req, rtc::scoped_refptr<CmdDone
 
     json res;
     res[kId] = id;
+    res[kSEIKey] = key;
     observer->OnSuccess(res);
 }
 
@@ -647,6 +666,19 @@ void CmdHost::handleLibmuxerRemoveInput(const json& req, rtc::scoped_refptr<CmdD
     if (m == NULL) {
         return;
     }
+
+    auto id = jsonAsString(req[kStreamId]);
+
+    auto key = m->GetInputKey(id);
+    auto iter = SeiQueues.find(key);
+    if (iter != SeiQueues.end()) {
+        if (iter->second) {
+            free(iter->second);
+        }
+        SeiQueues.erase(key);
+    }
+
+    m->RemoveInput(id);
 
     auto streamIdIt = req.find(kStreamId);
     if (streamIdIt != req.end() && streamIdIt->is_string()) {
@@ -1140,6 +1172,25 @@ void CmdHost::handleSinkDontReconnect(const json& req, rtc::scoped_refptr<CmdDon
     observer->OnSuccess();
 }
 
+void CmdHost::handleSinkSEIKey(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto stream = checkStream(jsonAsString(req[kId]), observer);
+    if (stream == NULL) {
+        return;
+    }
+
+    auto sink = stream->FindSink(jsonAsString(req[kSinkId]));
+    if (sink == NULL) {
+        observer->OnFailure(errInvalidParams, "sink not found");
+        return;
+    }
+
+    auto rtmpSink = static_cast<muxer::RtmpSink *>(sink);
+    if (rtmpSink != NULL) {
+        rtmpSink->SetSeiKey(jsonAsString(req[kSEIKey]));
+    }
+    observer->OnSuccess();
+}
+
 class CmdDoneWriteResObserver: public CmdHost::CmdDoneObserver {
 public:
     CmdDoneWriteResObserver(rtc::scoped_refptr<MsgPump::Request> req) : req_(req) {}
@@ -1208,6 +1259,8 @@ void CmdHost::handleReq(rtc::scoped_refptr<MsgPump::Request> req) {
         handleRequestKeyFrame(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtSinkDontReconnect) {
         handleSinkDontReconnect(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
+    } else if (type == mtSinkSEIKey) {
+        handleSinkSEIKey(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     }
 }
 

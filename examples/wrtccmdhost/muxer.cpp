@@ -244,6 +244,13 @@ std::shared_ptr<Output> AvMuxer::FindOutput(IN const std::string& _name)
         return p;
 }
 
+
+std::shared_ptr<Output> AvMuxer::GetDefaultOutput() {
+        std::shared_ptr<Output> p = nullptr;
+        outputs_.Peek(p);
+        return p;
+}
+
 int AvMuxer::Start()
 {
         tstart_ = now_f();
@@ -342,6 +349,26 @@ void AvMuxer::FeedOutputs(IN std::shared_ptr<MediaFrame>& _pFrame, double pts)
                         XDebug("FeedOutputs PushFailed isaudio %d", _pFrame->Stream() == StreamType::STREAM_AUDIO);
                 }
         });
+}
+
+void AvMuxer::SetInputKey(IN const std::string &id, IN const std::string &key) {
+        inputKeys_.insert(std::make_pair(id, key));
+}
+
+std::string AvMuxer::GetInputKey(IN const std::string &id) {
+        auto iter = inputKeys_.find(id);
+        if (iter != inputKeys_.end()) {
+                return iter->second;
+        }
+
+        return "";
+}
+
+void AvMuxer::RemoveInputKey(IN const std::string &id) {
+        auto iter = inputKeys_.find(id);
+        if (iter != inputKeys_.end()) {
+                inputKeys_.erase(id);
+        }
 }
 
 //

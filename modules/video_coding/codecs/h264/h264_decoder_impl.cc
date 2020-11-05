@@ -30,7 +30,7 @@ extern "C" {
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/metrics.h"
 
-std::list<AVPacket *> SeiQueue;
+std::map<std::string, std::list<AVPacket *>* > SeiQueues;
 
 namespace webrtc {
 
@@ -330,7 +330,16 @@ int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
   packet.size = static_cast<int>(input_image._length);
   av_context_->reordered_opaque = input_image.ntp_time_ms_ * 1000;  // ms -> μs
 
-  this->ExtraSEIAndEnqueue(SeiQueue, input_image._buffer, input_image._length);
+  //shoud grep ssrc, trackid.ssrc.reqid
+  auto ssrc = "." + std::to_string(input_image.SSRC()) + ".";
+  std::map<std::string, std::list<AVPacket *>* >::iterator iter;
+  for (iter = SeiQueues.begin(); iter != SeiQueues.end(); iter++){
+    auto key = iter->first;
+    std::string::size_type idx = key.find(ssrc);
+    if (idx != std::string::npos) {
+        this->ExtraSEIAndEnqueue(*iter->second, input_image._buffer, input_image._length);
+    }
+  }
 
   int frame_decoded = 0;
   int result = avcodec_decode_video2(av_context_.get(),
@@ -466,10 +475,10 @@ void H264DecoderImpl::ExtraSEIAndEnqueue(std::list<AVPacket *>& queue, const uin
     return;
   }
 
-  std::ofstream outfile;
-  outfile.open("dump.h264", std::ios::app|std::ios::binary);
-  outfile.write(reinterpret_cast<const char *>(buffer), length);
-  outfile.close();
+  //std::ofstream outfile;
+  //outfile.open("dump.h264", std::ios::app|std::ios::binary);
+  //outfile.write(reinterpret_cast<const char *>(buffer), length);
+  //outfile.close();
 
   const uint8_t *end = buffer + length;
   const uint8_t *p = NULL, *nalu_start = NULL;

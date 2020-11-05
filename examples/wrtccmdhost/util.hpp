@@ -353,4 +353,12 @@ static inline uint64_t now_ms() {
         return uint64_t(now_f()*1000);
 }
 
+static inline bool IsContain(const std::string &str, const std::string &substr) {
+        std::string::size_type idx = str.find(substr);
+        if (idx != std::string::npos) {
+                return true;
+        }
+        return false;
+}
+
 #endif

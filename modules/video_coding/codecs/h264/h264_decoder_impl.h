@@ -23,7 +23,7 @@ extern "C" {
 #include "common_video/h264/h264_bitstream_parser.h"
 #include "common_video/include/i420_buffer_pool.h"
 
-extern std::list<AVPacket *> SeiQueue;
+extern std::map<std::string, std::list<AVPacket *>* > SeiQueues;
 #define START_CODE_SHIFT 3
 
 namespace webrtc {

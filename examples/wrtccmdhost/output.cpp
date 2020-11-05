@@ -946,6 +946,23 @@ int RtmpSender::Send(IN const std::string& url, IN const std::shared_ptr<MediaPa
                 SendStreamMetaInfo(*_pPacket);
         }
 
+        if (pRtmp_ != nullptr) {
+                auto iter = SeiQueues.find(seiKey_);
+                if (iter != SeiQueues.end()) {
+                        auto SeiQueue = *iter->second;
+                        if (!SeiQueue.empty()) {
+                                auto packet = SeiQueue.front();
+                                XInfo("SeiQueue size %lu, packet size %d", SeiQueue.size(), packet->size);
+                                if (auto ret = _pPacket->AppendSEI(packet->data, packet->size) < 0 ) {
+                                        XError("h264 encoder: could not AppendSEI");
+                                }
+                                SeiQueue.pop_front();
+                                XInfo("SeiQueue size %lu, packet size %d pop", SeiQueue.size(), packet->size);
+                                av_free_packet(packet);
+                        }
+                }
+        }
+
         // send RTMP supported data
         int nStatus = 0;
         switch(_pPacket->Codec()) {
@@ -1134,9 +1151,9 @@ int RtmpSender::SendH264Packet(IN const MediaPacket& _packet)
                 case 1:
                 case 5:
                         break;
-                case 6:
-                        it = nalus.erase(it);
-                        continue;
+                //case 6:
+                //        it = nalus.erase(it);
+                //        continue;
                 case 7:
                         if (keepSpsPpsInNalus_) {
                                 break;
