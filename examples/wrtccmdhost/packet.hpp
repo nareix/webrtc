@@ -34,6 +34,7 @@ namespace muxer
                 // data fields
                 char* Data()const;
                 int Size() const;
+                int AppendSEI(const uint8_t* buffer, int length);
 
                 // util
                 void Print() const;

@@ -18,6 +18,7 @@ extern "C" {
 #include "third_party/ffmpeg/libavcodec/avcodec.h"
 #include "third_party/ffmpeg/libavformat/avformat.h"
 #include "third_party/ffmpeg/libavutil/imgutils.h"
+#include "third_party/ffmpeg/libavcodec/h264.h"
 }  // extern "C"
 
 #include "api/video/i420_buffer.h"
@@ -27,6 +28,8 @@ extern "C" {
 #include "rtc_base/keep_ref_until_done.h"
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/metrics.h"
+
+std::list<AVPacket *> SeiQueue;
 
 namespace webrtc {
 
@@ -326,6 +329,8 @@ int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
   packet.size = static_cast<int>(input_image._length);
   av_context_->reordered_opaque = input_image.ntp_time_ms_ * 1000;  // ms -> μs
 
+  this->ExtraSEIAndEnqueue(SeiQueue, input_image._buffer, input_image._length);
+
   int frame_decoded = 0;
   int result = avcodec_decode_video2(av_context_.get(),
                                      av_frame_.get(),
@@ -452,6 +457,63 @@ void H264DecoderImpl::ReportError() {
                             kH264DecoderEventError,
                             kH264DecoderEventMax);
   has_reported_error_ = true;
+}
+
+void H264DecoderImpl::ExtraSEIAndEnqueue(std::list<AVPacket *>& queue, const uint8_t *buffer, const uint32_t length) {
+  if (!buffer || 0 == length) {
+    LOG(LS_WARNING) << "ExtraSEIAndEnqueue buffer is empty";
+    return;
+  }
+
+  const uint8_t *end = buffer + length;
+  const uint8_t *p = NULL, *nalu_start = NULL;
+  u_int32_t nal_type_pos = 0;
+  while(buffer < end){
+    p = this->FindStartCode(buffer, end, &nal_type_pos);
+    if(nalu_start){
+        AVPacket *seiPacket = (AVPacket *)malloc(sizeof(AVPacket));
+        int size = p-nalu_start;
+        av_new_packet(seiPacket, size);
+        memcpy(seiPacket->data, nalu_start, size);
+        seiPacket->size = size;
+        queue.push_back(seiPacket);
+    }
+
+    if(p == end || (p+nal_type_pos) == end || NULL == p)
+      break;
+
+    if((*(p+nal_type_pos) & 0x1F) == H264_NAL_SEI){
+      nalu_start = p;
+    }else {
+      nalu_start = NULL;
+    }
+    buffer = p + nal_type_pos;
+    nal_type_pos = 0;
+  }
+
+
+  return;
+}
+
+const uint8_t* H264DecoderImpl::FindStartCode(const uint8_t *p, const uint8_t *end, uint32_t *length) {
+  if(!p || !end || !length){
+    return NULL;
+  }
+
+  if(p >=end || p + START_CODE_SHIFT > end)
+    return end;
+
+  while(p < end - START_CODE_SHIFT){
+    if((*p == 0) && (*(p+1) == 0) && (*(p+2) == 1)) {
+      *length = START_CODE_SHIFT;
+      return p;
+    } else if((*p == 0) && (*(p+1) == 0) && (*(p+2) == 0) && (*(p+3) == 1)) {
+      *length = START_CODE_SHIFT + 1;
+      return p;
+    }
+    p++;
+  }
+  return end;
 }
 
 }  // namespace webrtc

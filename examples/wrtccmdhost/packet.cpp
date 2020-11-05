@@ -178,6 +178,17 @@ void MediaPacket::SetKey()
         pAvPacket_->flags |= AV_PKT_FLAG_KEY;
 }
 
+int MediaPacket::AppendSEI(const uint8_t *buffer, int length)
+{
+        if (auto ret = av_grow_packet(pAvPacket_, length) < 0) {
+                return ret;
+        }
+
+        memcpy(pAvPacket_->data+pAvPacket_->size, buffer, length);
+
+        return 0;
+}
+
 //
 // MediaFrame
 //

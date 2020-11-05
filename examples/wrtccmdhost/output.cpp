@@ -354,6 +354,18 @@ int AvEncoder::EncodeH264(IN std::shared_ptr<MediaFrame>& _pFrame, IN EncoderHan
 
                         nStatus = avcodec_receive_packet(pAvEncoderContext_, pPacket->AvPacket());
                         if (nStatus == 0) {
+                                if (!SeiQueue.empty()) {
+                                        auto iter = SeiQueue.rbegin();
+                                        if(iter != SeiQueue.rend()) {
+                                                auto packet = *iter;
+                                                if (auto ret = pPacket->AppendSEI(packet->data, packet->size) < 0 ) {
+                                                        XError("h264 encoder: could not AppendSEI");
+                                                }
+                                                SeiQueue.pop_front();
+                                                av_free_packet(packet);
+                                        }
+                                }
+
                                 nStatus = _callback(pPacket);
                                 if (nStatus < 0) {
                                         return nStatus;
@@ -368,6 +380,26 @@ int AvEncoder::EncodeH264(IN std::shared_ptr<MediaFrame>& _pFrame, IN EncoderHan
                                 pPacket->Print();
                                 return -1;
                         }
+
+                        /*
+                        if (!SeiQueue.empty()) {
+                               auto iter = SeiQueue.rbegin();
+                               if(iter != SeiQueue.rend()) {
+                                        auto packet = *iter;
+                                        auto mPacket = std::make_shared<MediaPacket>();
+                                        mPacket->Stream(STREAM_VIDEO);
+                                        mPacket->Codec(CODEC_H264);
+                                        mPacket->Width(pAvEncoderContext_->width);
+                                        mPacket->Height(pAvEncoderContext_->height);
+                                        memcpy(mPacket->AvPacket()->data, packet->data, packet->size);
+                                        mPacket->AvPacket()->size = packet->size;
+                                        av_free_packet(packet);
+                                        nStatus = _callback(mPacket);
+                                        if (nStatus < 0) {
+                                                return nStatus;
+                                        }
+                               }
+                        }*/
                 }
         } while(1);
 
