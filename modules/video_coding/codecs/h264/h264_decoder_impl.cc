@@ -467,8 +467,8 @@ void H264DecoderImpl::ExtraSEIAndEnqueue(std::list<AVPacket *>& queue, const uin
   }
 
   std::ofstream outfile;
-  outfile.open("dump.h264", std::ios::app);
-  outfile<<buffer;
+  outfile.open("dump.h264", std::ios::app|std::ios::binary);
+  outfile.write(reinterpret_cast<const char *>(buffer), length);
   outfile.close();
 
   const uint8_t *end = buffer + length;
