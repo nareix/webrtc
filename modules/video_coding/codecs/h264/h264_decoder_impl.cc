@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <fstream>
 
 extern "C" {
 #include "third_party/ffmpeg/libavcodec/avcodec.h"
@@ -464,6 +465,11 @@ void H264DecoderImpl::ExtraSEIAndEnqueue(std::list<AVPacket *>& queue, const uin
     LOG(LS_WARNING) << "ExtraSEIAndEnqueue buffer is empty";
     return;
   }
+
+  std::ofstream outfile;
+  outfile.open("dump.h264", std::ios::app);
+  outfile<<buffer;
+  outfile.close();
 
   const uint8_t *end = buffer + length;
   const uint8_t *p = NULL, *nalu_start = NULL;
