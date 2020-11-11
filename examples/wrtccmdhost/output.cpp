@@ -361,6 +361,7 @@ int AvEncoder::EncodeH264(IN std::shared_ptr<MediaFrame>& _pFrame, IN EncoderHan
                                                 XError("h264 encoder: could not AppendSEI");
                                         }
                                         SeiQueue.pop_front();
+                                        XInfo("SeiQueue size %lu, packet size %d pop", SeiQueue.size(), packet->size);
                                         av_free_packet(packet);
                                 }
 

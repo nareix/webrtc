@@ -180,11 +180,12 @@ void MediaPacket::SetKey()
 
 int MediaPacket::AppendSEI(const uint8_t *buffer, int length)
 {
+        int originSize = pAvPacket_->size;
         if (auto ret = av_grow_packet(pAvPacket_, length) < 0) {
                 return ret;
         }
 
-        memcpy(pAvPacket_->data+pAvPacket_->size, buffer, length);
+        memcpy(pAvPacket_->data+originSize, buffer, length);
 
         return 0;
 }
