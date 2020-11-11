@@ -355,15 +355,13 @@ int AvEncoder::EncodeH264(IN std::shared_ptr<MediaFrame>& _pFrame, IN EncoderHan
                         nStatus = avcodec_receive_packet(pAvEncoderContext_, pPacket->AvPacket());
                         if (nStatus == 0) {
                                 if (!SeiQueue.empty()) {
-                                        auto iter = SeiQueue.rbegin();
-                                        if(iter != SeiQueue.rend()) {
-                                                auto packet = *iter;
-                                                if (auto ret = pPacket->AppendSEI(packet->data, packet->size) < 0 ) {
-                                                        XError("h264 encoder: could not AppendSEI");
-                                                }
-                                                SeiQueue.pop_front();
-                                                av_free_packet(packet);
+                                        auto packet = SeiQueue.front();
+                                        XInfo("SeiQueue size %lu, packet size %d", SeiQueue.size(), packet->size);
+                                        if (auto ret = pPacket->AppendSEI(packet->data, packet->size) < 0 ) {
+                                                XError("h264 encoder: could not AppendSEI");
                                         }
+                                        SeiQueue.pop_front();
+                                        av_free_packet(packet);
                                 }
 
                                 nStatus = _callback(pPacket);

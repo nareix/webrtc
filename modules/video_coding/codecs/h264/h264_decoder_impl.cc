@@ -483,6 +483,7 @@ void H264DecoderImpl::ExtraSEIAndEnqueue(std::list<AVPacket *>& queue, const uin
         memcpy(seiPacket->data, nalu_start, size);
         seiPacket->size = size;
         queue.push_back(seiPacket);
+        LOG(LS_WARNING) << "queue.size:" << queue.size();
     }
 
     if(p == end || (p+nal_type_pos) == end || NULL == p)
