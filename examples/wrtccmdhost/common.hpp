@@ -224,10 +224,12 @@ namespace muxer
         public:
                 virtual bool GetOption(IN const std::string& key, OUT std::string& value);
                 virtual bool GetOption(IN const std::string& key, OUT int& value);
+                virtual bool GetOption(IN const std::string& key, OUT bool& value);
                 virtual bool GetOption(IN const std::string& key);
                 virtual void SetOption(IN const std::string& flag);
                 virtual void SetOption(IN const std::string& key, IN const std::string& value);
                 virtual void SetOption(IN const std::string& key, IN int val);
+                virtual void SetOption(IN const std::string& key, IN bool val);
                 virtual void DelOption(IN const std::string& key);
                 virtual void GetOptions(IN const OptionMap& opts);
                 virtual ~OptionMap() {}

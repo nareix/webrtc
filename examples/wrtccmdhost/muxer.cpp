@@ -30,6 +30,18 @@ bool OptionMap::GetOption(IN const std::string& _key, OUT int& _value)
         return false;
 }
 
+bool OptionMap::GetOption(IN const std::string& _key, OUT bool& _value)
+{
+        std::lock_guard<std::mutex> lock(paramsLck_);
+
+        auto it = intparams_.find(_key);
+        if (it != intparams_.end()) {
+                _value = static_cast<bool>(it->second);
+                return true;
+        }
+        return false;
+}
+
 bool OptionMap::GetOption(IN const std::string& _key)
 {
         std::lock_guard<std::mutex> lock(paramsLck_);
@@ -53,11 +65,17 @@ void OptionMap::SetOption(IN const std::string& _key, IN int _val)
         intparams_[_key] = _val;
 }
 
+void OptionMap::SetOption(IN const std::string& _key, IN bool _val)
+{
+        std::lock_guard<std::mutex> lock(paramsLck_);
+        intparams_[_key] = static_cast<int>(_val);
+}
+
 void OptionMap::SetOption(IN const std::string& _flag)
 {
         std::lock_guard<std::mutex> lock(paramsLck_);
 
-        SetOption(_flag, "");
+        SetOption(_flag, true);
 }
 
 void OptionMap::DelOption(IN const std::string& _key)
