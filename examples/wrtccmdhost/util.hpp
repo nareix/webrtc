@@ -12,6 +12,9 @@
 #include <random>
 
 #include "rtc_base/json.h"
+#include "nlohmann/json.hpp"
+
+using json = nlohmann::json;
 
 //
 // singleton
@@ -321,27 +324,6 @@ static inline std::string newReqId() {
     return std::string(buf, sizeof(buf));
 }
 
-static inline std::string jsonAsString(const Json::Value& v) {
-    if (!v.isString()) {
-        return "";
-    }
-    return v.asString();
-}
-
-static inline int jsonAsInt(const Json::Value& v) {
-    if (!v.isInt()) {
-        return 0;
-    }
-    return v.asInt();
-}
-
-static inline bool jsonAsBool(const Json::Value& v) {
-    if (!v.isBool()) {
-        return false;
-    }
-    return v.asBool();
-}
-
 static inline int fpwrite(FILE *fp, void *buf, size_t len) {
         return fwrite(buf, 1, len, fp) != len ? -1 : 0;
 }
@@ -351,7 +333,7 @@ public:
     XLogger() {
         reqid_ = newReqId();
     }
-    
+
     XLogger(const std::string reqid) {
         reqid_ = reqid;
     }

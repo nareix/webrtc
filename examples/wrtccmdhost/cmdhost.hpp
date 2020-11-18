@@ -8,8 +8,10 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/json.h"
 #include "rtc_base/refcount.h"
+#include "nlohmann/json.hpp"
+
+using json = nlohmann::json;
 
 class CmdHost {
 public:
@@ -20,10 +22,10 @@ public:
     class CmdDoneObserver: public rtc::RefCountInterface {
     public:
         virtual void OnSuccess() {
-            Json::Value res;
+            json res;
             OnSuccess(res);
         }
-        virtual void OnSuccess(Json::Value& res) = 0;
+        virtual void OnSuccess(json& res) = 0;
         virtual void OnFailure(int code, const std::string& error) = 0;
     };
 
@@ -43,33 +45,33 @@ public:
 
     MsgPump* msgpump_;
 
-    void writeMessage(const std::string& type, const Json::Value& msg);
-    WRTCConn *checkConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void writeMessage(const std::string& type, const json& msg);
+    WRTCConn *checkConn(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     Stream *checkStream(const std::string& id, rtc::scoped_refptr<CmdDoneObserver> observer);
-    muxer::AvMuxer *checkLibmuxer(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    muxer::AvMuxer *checkLibmuxer(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
 
-    void handleCreateOffer(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleCreateOfferSetLocalDesc(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleSetRemoteDesc(const Json::Value& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer);
-    void handleSetRemoteDescCreateAnswer(const Json::Value& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer);
-    void handleSetLocalDesc(const Json::Value& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer);
-    void handleAddIceCandidate(const Json::Value& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer);
-    void handleNewConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleNewLibmuxer(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleLibmuxerAddInput(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleLibmuxerRemoveInput(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleLibmuxerSetInputsOpt(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleStreamAddSink(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleStreamRemoveSink(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleNewCanvasStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleNewUrlStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleConnAddStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleConnStats(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleNewRawStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleRawStreamSendPacket(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleSinkStats(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleRequestKeyFrame(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleSinkDontReconnect(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleCreateOffer(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleCreateOfferSetLocalDesc(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleSetRemoteDesc(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer);
+    void handleSetRemoteDescCreateAnswer(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer);
+    void handleSetLocalDesc(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer);
+    void handleAddIceCandidate(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer);
+    void handleNewConn(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleNewLibmuxer(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleLibmuxerAddInput(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleLibmuxerRemoveInput(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleLibmuxerSetInputsOpt(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleStreamAddSink(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleStreamRemoveSink(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleNewCanvasStream(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleNewUrlStream(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleConnAddStream(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleConnStats(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleNewRawStream(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleRawStreamSendPacket(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleSinkStats(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleRequestKeyFrame(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleSinkDontReconnect(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleReq(rtc::scoped_refptr<MsgPump::Request> req);
-    void handleMsg(const std::string& type, const Json::Value& body);
+    void handleMsg(const std::string& type, const json& body);
 };
