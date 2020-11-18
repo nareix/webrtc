@@ -76,31 +76,31 @@ int MsgPump::readMessage(std::string& type, json& message) {
   }
 
 out_free:
-  free(data);
-  return r;
+    free(data);
+    return r;
 }
 
 void MsgPump::Request::WriteResponse(const json& res) {
-  p_->WriteMessage("$res16-" + reqid_, res);
+    p_->WriteMessage("$res16-"+reqid_, res);
 }
 
 void MsgPump::Run() {
-  for (;;) {
-    std::string type;
-    json message;
-    int r = readMessage(type, message);
-    if (r < 0)
-      break;
+    for (;;) {
+        std::string type;
+        json message;
+        int r = readMessage(type, message);
+        if (r < 0)
+            break;
 
-    if (!strncmp(type.c_str(), "$req16-", 7)) {
-      if (type.size() > 7 + 16) {
-        auto reqid = type.substr(7, 16);
-        auto type2 = type.substr(7 + 16);
-        auto req = new rtc::RefCountedObject<MsgPump::Request>(this, reqid, type2, message);
-        observer_->OnRequest(req);
-      }
-    } else {
-      observer_->OnMessage(type, message);
+        if (!strncmp(type.c_str(), "$req16-", 7)) {
+            if (type.size() > 7+16) {
+                auto reqid = type.substr(7, 16);
+                auto type2 = type.substr(7+16);
+                auto req = new rtc::RefCountedObject<MsgPump::Request>(this, reqid, type2, message);
+                observer_->OnRequest(req);
+            }
+        } else {
+            observer_->OnMessage(type, message);
+        }
     }
-  }
 }

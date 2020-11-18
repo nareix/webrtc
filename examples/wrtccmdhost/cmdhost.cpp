@@ -16,9 +16,9 @@ const int errConnNotFound = 10002;
 const std::string errConnNotFoundString = "conn not found";
 const int errInvalidParams = 10003;
 const std::string errInvalidParamsString = "invalid params";
-const int errStreamNotFound = 10004;	
-const std::string errStreamNotFoundString = "stream not found";	
-const int errMuxerNotFound = 10005;	
+const int errStreamNotFound = 10004;
+const std::string errStreamNotFoundString = "stream not found";
+const int errMuxerNotFound = 10005;
 const std::string errMuxerNotFoundString = "muxer not found";
 
 const int maxPort = 65535;
@@ -72,7 +72,7 @@ void CmdHost::Run() {
     wrtc_signal_thread_.Start();
     wrtc_work_thread_.Start();
     pc_factory_ = webrtc::CreatePeerConnectionFactory(
-        &wrtc_work_thread_, &wrtc_work_thread_, &wrtc_signal_thread_, 
+        &wrtc_work_thread_, &wrtc_work_thread_, &wrtc_signal_thread_,
         nullptr, nullptr, nullptr
     );
     Info("wrtc_work_thread_ %p", &wrtc_work_thread_);
@@ -240,7 +240,10 @@ Stream* CmdHost::checkStream(const std::string& id, rtc::scoped_refptr<CmdDoneOb
     Stream *stream = NULL;
     {
         std::lock_guard<std::mutex> lock(streams_map_lock_);
-        stream = streams_map_[id];
+        auto it = streams_map_.find(id);
+        if (it != streams_map_.end()) {
+            stream = it->second;
+        }
     }
     if (stream == NULL) {
         observer->OnFailure(errStreamNotFound, errStreamNotFoundString);
@@ -259,7 +262,10 @@ WRTCConn* CmdHost::checkConn(const json& req, rtc::scoped_refptr<CmdDoneObserver
     WRTCConn *conn = NULL;
     {
         std::lock_guard<std::mutex> lock(conn_map_lock_);
-        conn = conn_map_[idIt->get<std::string>()];
+        auto it = conn_map_.find(idIt->get<std::string>());
+        if (it != conn_map_.end()) {
+            conn = it->second;
+        }
     }
     if (conn == NULL) {
         observer->OnFailure(errConnNotFound, errConnNotFoundString);
@@ -367,7 +373,7 @@ void CmdHost::handleSetRemoteDesc(const json& req, rtc::scoped_refptr<CmdHost::C
     }
 
     webrtc::SdpParseError err;
-    auto desc = CreateSessionDescriptioqn(type, sdpIt->get<std::string>(), &err);
+    auto desc = CreateSessionDescription(type, sdpIt->get<std::string>(), &err);
     if (!desc) {
         observer->OnFailure(errInvalidParams, err.description);
         return;
@@ -462,7 +468,10 @@ muxer::AvMuxer* CmdHost::checkLibmuxer(const json& req, rtc::scoped_refptr<CmdDo
     muxer::AvMuxer *m = NULL;
     {
         std::lock_guard<std::mutex> lock(muxers_map_lock_);
-        m = muxers_map_[idIt->get<std::string>()];
+        auto it = muxers_map_.find(idIt->get<std::string>());
+        if (it != muxers_map_.end()) {
+            m = it->second;
+        }
     }
 
     if (m == NULL) {
