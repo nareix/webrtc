@@ -72,7 +72,7 @@ void CmdHost::Run() {
     wrtc_signal_thread_.Start();
     wrtc_work_thread_.Start();
     pc_factory_ = webrtc::CreatePeerConnectionFactory(
-        &wrtc_work_thread_, &wrtc_work_thread_, &wrtc_signal_thread_,
+        &wrtc_work_thread_, &wrtc_work_thread_, &wrtc_signal_thread_, 
         nullptr, nullptr, nullptr
     );
     Info("wrtc_work_thread_ %p", &wrtc_work_thread_);
@@ -240,16 +240,12 @@ Stream* CmdHost::checkStream(const std::string& id, rtc::scoped_refptr<CmdDoneOb
     Stream *stream = NULL;
     {
         std::lock_guard<std::mutex> lock(streams_map_lock_);
-        auto it = streams_map_.find(id);
-        if (it != streams_map_.end()) {
-            stream = it->second;
-        }
+        stream = streams_map_[id];
     }
     if (stream == NULL) {
         observer->OnFailure(errStreamNotFound, errStreamNotFoundString);
         return NULL;
     }
-
     return stream;
 }
 
@@ -263,14 +259,7 @@ WRTCConn* CmdHost::checkConn(const json& req, rtc::scoped_refptr<CmdDoneObserver
     WRTCConn *conn = NULL;
     {
         std::lock_guard<std::mutex> lock(conn_map_lock_);
-<<<<<<< HEAD
-        auto it = conn_map_.find(idIt->get<std::string>());
-=======
-        auto it = conn_map_.find(id.asString());
->>>>>>> 4f12cb8ee53a03944aeffa9bd0c3b6de229dcc84
-        if (it != conn_map_.end()) {
-            conn = it->second;
-        }
+        conn = conn_map_[idIt->get<std::string>()];
     }
     if (conn == NULL) {
         observer->OnFailure(errConnNotFound, errConnNotFoundString);
@@ -351,11 +340,7 @@ void CmdHost::handleSetLocalDesc(const json& req, rtc::scoped_refptr<CmdHost::Cm
     }
 
     webrtc::SdpParseError err;
-<<<<<<< HEAD
     auto desc = CreateSessionDescription(type, sdpIt->get<std::string>(), &err); 
-=======
-    auto desc = CreateSessionDescription(type, sdp, &err);
->>>>>>> 4f12cb8ee53a03944aeffa9bd0c3b6de229dcc84
     if (!desc) {
         observer->OnFailure(errInvalidParams, err.description);
         return;
@@ -382,11 +367,7 @@ void CmdHost::handleSetRemoteDesc(const json& req, rtc::scoped_refptr<CmdHost::C
     }
 
     webrtc::SdpParseError err;
-<<<<<<< HEAD
-    auto desc = CreateSessionDescription(type, sdpIt->get<std::string>(), &err);
-=======
-    auto desc = CreateSessionDescription(type, sdp, &err);
->>>>>>> 4f12cb8ee53a03944aeffa9bd0c3b6de229dcc84
+    auto desc = CreateSessionDescriptioqn(type, sdpIt->get<std::string>(), &err);
     if (!desc) {
         observer->OnFailure(errInvalidParams, err.description);
         return;
@@ -407,11 +388,7 @@ void CmdHost::handleSetRemoteDescCreateAnswer(const json& req, rtc::scoped_refpt
     }
 
     webrtc::SdpParseError err;
-<<<<<<< HEAD
     auto desc = CreateSessionDescription("offer", sdpIt->get<std::string>(), &err);
-=======
-    auto desc = CreateSessionDescription("offer", sdp, &err);
->>>>>>> 4f12cb8ee53a03944aeffa9bd0c3b6de229dcc84
     if (!desc) {
         observer->OnFailure(errInvalidParams, err.description);
         return;
@@ -485,14 +462,7 @@ muxer::AvMuxer* CmdHost::checkLibmuxer(const json& req, rtc::scoped_refptr<CmdDo
     muxer::AvMuxer *m = NULL;
     {
         std::lock_guard<std::mutex> lock(muxers_map_lock_);
-<<<<<<< HEAD
-        auto it = muxers_map_.find(idIt->get<std::string>());
-=======
-        auto it = muxers_map_.find(id.asString());
->>>>>>> 4f12cb8ee53a03944aeffa9bd0c3b6de229dcc84
-        if (it != muxers_map_.end()) {
-            m = it->second;
-        }
+        m = muxers_map_[idIt->get<std::string>()];
     }
 
     if (m == NULL) {
@@ -994,17 +964,12 @@ void CmdHost::handleConnAddStream(const json& req, rtc::scoped_refptr<CmdDoneObs
         return;
     }
 
-<<<<<<< HEAD
     Stream *stream = nullptr;
     auto streamIdIt = req.find("stream_id");
     if (streamIdIt != req.end() && streamIdIt->is_string()) {
         stream = checkStream(streamIdIt->get<std::string>(), observer);
     }
     if (stream == nullptr) {
-=======
-    auto stream = checkStream(jsonAsString(req["stream_id"]), observer);
-    if (stream == NULL) {
->>>>>>> 4f12cb8ee53a03944aeffa9bd0c3b6de229dcc84
         return;
     }
 
