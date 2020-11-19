@@ -153,8 +153,6 @@ int AvMuxer::PrintInputs()
                         Info("AvMuxer %p Input id:%s, x:%d, y:%d, w:%d, h:%d, z:%d, hidden:%d", this, _pInput->Name().c_str(), x, y, w, h, z, hidden);
                         return true;
                 });
-
-        Info("AvMuxer %p, length %zu", this, inputs_.Size());
         return 0;
 }
 
