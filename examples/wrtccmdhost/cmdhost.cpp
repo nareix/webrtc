@@ -6,8 +6,8 @@
 #include "rtc_base/base64.h"
 
 const std::string kId = "id";
-const std::string kStreamId = "stream_id";
-const std::string kSinkId = "sink_id";
+const std::string kStreamId = "streamId";
+const std::string kSinkId = "sinkId";
 const std::string kCode = "code";
 const std::string kError = "error";
 const std::string kSdp = "sdp";
@@ -175,7 +175,7 @@ void CmdHost::handleNewConn(const json& req, rtc::scoped_refptr<CmdDoneObserver>
         rtcconf.set_rawpkt(true);
     }
 
-    auto dumpRawpktIt = req.find("dump_rawpkt");
+    auto dumpRawpktIt = req.find("dumpRawpkt");
     if (dumpRawpktIt != req.end() && dumpRawpktIt->is_boolean() && dumpRawpktIt->get<bool>()) {
         rtcconf.set_dump_rawpkt(true);
     }
@@ -183,12 +183,12 @@ void CmdHost::handleNewConn(const json& req, rtc::scoped_refptr<CmdDoneObserver>
     int min_port = 0;
     int max_port = 0;
 
-    auto minPortIt = req.find("min_port");
+    auto minPortIt = req.find("minPort");
     if (minPortIt != req.end() && minPortIt->is_number_integer()) {
         min_port = minPortIt->get<int>();
     }
 
-    auto maxPortIt = req.find("max_port");
+    auto maxPortIt = req.find("maxPort");
     if (maxPortIt != req.end() && maxPortIt->is_number_integer()) {
         max_port = maxPortIt->get<int>();
     }
@@ -200,7 +200,7 @@ void CmdHost::handleNewConn(const json& req, rtc::scoped_refptr<CmdDoneObserver>
 
     rtcconf.set_ice_port_range(min_port, max_port);
 
-    auto iceServersIt = req.find("ice_servers");
+    auto iceServersIt = req.find("iceServers");
     if (iceServersIt != req.end() && iceServersIt->is_array() && iceServersIt->size() > 0) {
         webrtc::PeerConnectionInterface::IceServer icesrv = {};
         for (const auto& ice_server : *iceServersIt) {
@@ -541,7 +541,7 @@ void CmdHost::handleNewLibmuxer(const json& req, rtc::scoped_refptr<CmdHost::Cmd
 
     json res;
     res[kId] = id;
-    res["output_stream_id"] = stream_id;
+    res["outputStreamId"] = stream_id;
     observer->OnSuccess(res);
 }
 
@@ -974,7 +974,7 @@ void CmdHost::handleConnAddStream(const json& req, rtc::scoped_refptr<CmdDoneObs
     }
 
     Stream *stream = nullptr;
-    auto streamIdIt = req.find("stream_id");
+    auto streamIdIt = req.find("streamId");
     if (streamIdIt != req.end() && streamIdIt->is_string()) {
         stream = checkStream(streamIdIt->get<std::string>(), observer);
     }
@@ -1132,7 +1132,7 @@ void CmdHost::handleSinkDontReconnect(const json& req, rtc::scoped_refptr<CmdDon
 
     auto rtmpSink = static_cast<muxer::RtmpSink *>(sink);
 
-    auto dontReconnectIt = req.find("dont_reconnect");
+    auto dontReconnectIt = req.find("dontReconnect");
     if (dontReconnectIt != req.end() && dontReconnectIt->is_boolean() && rtmpSink != nullptr) {
         rtmpSink->dont_reconnect = dontReconnectIt->get<bool>();
     }
