@@ -9,13 +9,13 @@ int MsgPump::WriteMessage(const std::string& type, const json& message) {
   std::lock_guard<std::mutex> lock(wlock_);
 
   Verbose("WriteCmd %s=%s", type.c_str(), message.dump().c_str());
-  std::vector<uint8_t> mesgBSON = json::to_bson(message);
+  std::vector<uint8_t> msgBSON = json::to_bson(message);
 
-  if (mesgBSON.size() == 0) {
+  if (msgBSON.size() == 0) {
       return -1;
   }
 
-  uint32_t len = htonl(type.size() + mesgBSON.size() + 1);
+  uint32_t len = htonl(type.size() + msgBSON.size() + 1);
 
   if (fwrite(&len, 1, sizeof(len), stdout) != sizeof(len)) {
     return -1;
@@ -26,7 +26,7 @@ int MsgPump::WriteMessage(const std::string& type, const json& message) {
   if (fwrite("=", 1, 1, stdout) != 1) {
     return -1;
   }
-  if (fwrite(std::addressof(mesgBSON[0]), 1, mesgBSON.size(), stdout) != mesgBSON.size()) {
+  if (fwrite(std::addressof(msgBSON[0]), 1, msgBSON.size(), stdout) != msgBSON.size()) {
     return -1;
   }
   if (fflush(stdout) != 0) {
