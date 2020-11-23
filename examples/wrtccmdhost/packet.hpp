@@ -76,7 +76,6 @@ namespace muxer
         public:
                 MediaFrame(IN const AVFrame* pFrame);
                 MediaFrame(IN const std::string& rawpkt);
-                MediaFrame(IN const char* data, size_t length);
                 MediaFrame();
                 MediaFrame(IN int nSamples, IN int nChannels, IN AVSampleFormat format, IN bool bSilence = false);
                 MediaFrame(IN int nWidth, IN int nHeight, IN AVPixelFormat format, IN int nColor = -1);

@@ -198,10 +198,6 @@ MediaFrame::MediaFrame(IN const std::string& rawpkt): rawpkt(rawpkt), stream_(ST
 {
 }
 
-MediaFrame::MediaFrame(IN const char* data, size_t length): rawpkt(std::string(data, length)), stream_(STREAM_RAWPACKET)
-{
-}
-
 MediaFrame::MediaFrame(IN const AVFrame* _pAvFrame)
 {
         pAvFrame_ = const_cast<AVFrame*>(_pAvFrame);

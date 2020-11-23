@@ -20,7 +20,6 @@ if (is_android) {
 rtc_executable("wrtccmdhost") {
   include_dirs = [
     #"wrtccmdhost/include",
-    "//third_party/json/source/single_include",
   ]
   libs = [ 
     #"wrtccmdhost/lib/libgrpc++.a",

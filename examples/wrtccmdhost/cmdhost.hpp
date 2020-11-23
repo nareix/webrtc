@@ -8,10 +8,8 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/json.h"
 #include "rtc_base/refcount.h"
-#include "nlohmann/json.hpp"
-
-using json = nlohmann::json;
 
 class CmdHost {
 public:
@@ -22,10 +20,10 @@ public:
     class CmdDoneObserver: public rtc::RefCountInterface {
     public:
         virtual void OnSuccess() {
-            json res;
+            Json::Value res;
             OnSuccess(res);
         }
-        virtual void OnSuccess(json& res) = 0;
+        virtual void OnSuccess(Json::Value& res) = 0;
         virtual void OnFailure(int code, const std::string& error) = 0;
     };
 
@@ -45,10 +43,10 @@ public:
 
     MsgPump* msgpump_;
 
-    void writeMessage(const std::string& type, const json& msg);
-    WRTCConn *checkConn(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void writeMessage(const std::string& type, const Json::Value& msg);
+    WRTCConn *checkConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     Stream *checkStream(const std::string& id, rtc::scoped_refptr<CmdDoneObserver> observer);
-    muxer::AvMuxer *checkLibmuxer(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    muxer::AvMuxer *checkLibmuxer(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
 
     void handleCreateOffer(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleCreateOfferSetLocalDesc(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
@@ -72,7 +70,6 @@ public:
     void handleSinkStats(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleRequestKeyFrame(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleSinkDontReconnect(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
-    void handleSinkSEIKey(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleReq(rtc::scoped_refptr<MsgPump::Request> req);
-    void handleMsg(const std::string& type, const json& body);
+    void handleMsg(const std::string& type, const Json::Value& body);
 };

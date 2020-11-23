@@ -91,8 +91,6 @@ deps = {
   },
   'src/third_party/jsoncpp/source':
     Var('chromium_git') + '/external/github.com/open-source-parsers/jsoncpp.git' + '@' + 'f572e8e42e22cfcf5ab0aea26574f408943edfa4', # from svn 248
-  'src/third_party/json/source':
-    'https://github.com/nlohmann/json.git' + '@' + '1bcabd9e83ebc2d04b5767c7f51bf385e80398d6',
   'src/third_party/junit/src': {
     'url': Var('chromium_git') + '/external/junit.git' + '@' + '64155f8a9babcfcf4263cf4d08253a1556e75481',
     'condition': 'checkout_android',

@@ -9,8 +9,6 @@ const std::string kReqid = "reqid";
 const std::string kId = "id";
 const std::string kStreamId = "stream_id";
 const std::string kSinkId = "sink_id";
-const std::string kSupportSEI = "supportsei";
-const std::string kSEIKey = "sei_key";
 const std::string kCode = "code";
 const std::string kError = "error";
 const std::string kSdp = "sdp";
@@ -60,14 +58,13 @@ const std::string mtRequestKeyFrame = "request-key-frame";
 const std::string mtSinkDontReconnect = "stream-sink-dont-reconnect";
 const std::string mtSinkSEIKey = "stream-sink-sei-key";
 
-static void parseOfferAnswerOpt(const json& v, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions& opt) {
-    auto audioIt = v.find("audio");
-    if (audioIt != v.end() && audioIt->is_boolean() && audioIt->get<bool>()) {
+static void parseOfferAnswerOpt(const Json::Value& v, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions& opt) {
+    auto audio = v["audio"];
+    if (audio.isBool() && audio.asBool()) {
         opt.offer_to_receive_audio = 1;
     }
-
-    auto videoIt = v.find("video");
-    if (videoIt != v.end() && videoIt->is_boolean() && videoIt->get<bool>()) {
+    auto video = v["video"];
+    if (video.isBool() && video.asBool()) {
         opt.offer_to_receive_video = 1;
     }
 }
@@ -84,7 +81,7 @@ void CmdHost::Run() {
     msgpump_->Run();
 }
 
-void CmdHost::writeMessage(const std::string& type, const json& msg) {
+void CmdHost::writeMessage(const std::string& type, const Json::Value& msg) {
     msgpump_->WriteMessage(type, msg);
 }
 
@@ -128,21 +125,21 @@ public:
     void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
         std::string sdp;
         candidate->ToString(&sdp);
-        json res;
-        json c;
+        Json::Value res;
+        Json::Value c;
         c[kSdpMid] = candidate->sdp_mid();
         c[kSdpMLineIndex] = std::to_string(candidate->sdp_mline_index());
         c[kCandidate] = sdp;
-        res[kCandidate] = c.dump();
+        res[kCandidate] = rtc::JsonValueToString(c);
         writeMessage(mtOnIceCandidate, res);
     }
     void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) {
-        json res;
+        Json::Value res;
         res["state"] = iceStateToString(new_state);
         writeMessage(mtOnIceConnectionChange, res);
     }
     void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {
-        json res;
+        Json::Value res;
         res["state"] = iceGatheringStateToString(new_state);
         writeMessage(mtOnIceGatheringChange, res);
     }
@@ -151,18 +148,18 @@ public:
             std::lock_guard<std::mutex> lock(h_->streams_map_lock_);
             h_->streams_map_[stream_id] = stream;
         }
-        json res;
+        Json::Value res;
         res[kId] = id;
         res[kStreamId] = stream_id;
         writeMessage(mtOnConnAddStream, res);
     }
     void OnRemoveStream(const std::string& id, const std::string& stream_id) {
-        json res;
+        Json::Value res;
         res[kId] = id;
         res[kStreamId] = stream_id;
         writeMessage(mtOnConnRemoveStream, res);
     }
-    void writeMessage(const std::string& type, json& res) {
+    void writeMessage(const std::string& type, Json::Value& res) {
         res[kId] = id_;
         h_->writeMessage(type, res);
     }
@@ -171,32 +168,20 @@ public:
     std::string id_;
 };
 
-void CmdHost::handleNewConn(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+void CmdHost::handleNewConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
     webrtc::PeerConnectionInterface::RTCConfiguration rtcconf = {};
 
-    auto rawpktIt = req.find("rawpkt");
-    if (rawpktIt != req.end() && rawpktIt->is_boolean() && rawpktIt->get<bool>()) {
+    auto ice_servers = req["ice_servers"];
+
+    if (jsonAsBool(req["rawpkt"])) {
         rtcconf.set_rawpkt(true);
     }
-
-    auto dumpRawpktIt = req.find("dumpRawpkt");
-    if (dumpRawpktIt != req.end() && dumpRawpktIt->is_boolean() && dumpRawpktIt->get<bool>()) {
+    if (jsonAsBool(req["dump_rawpkt"])) {
         rtcconf.set_dump_rawpkt(true);
     }
 
-    int min_port = 0;
-    int max_port = 0;
-
-    auto minPortIt = req.find("minPort");
-    if (minPortIt != req.end() && minPortIt->is_number_integer()) {
-        min_port = minPortIt->get<int>();
-    }
-
-    auto maxPortIt = req.find("maxPort");
-    if (maxPortIt != req.end() && maxPortIt->is_number_integer()) {
-        max_port = maxPortIt->get<int>();
-    }
-
+    auto min_port = jsonAsInt(req["min_port"]);
+    auto max_port = jsonAsInt(req["max_port"]);
     if (min_port < 0 || min_port > maxPort || max_port < 0 || max_port > maxPort || min_port > max_port) {
         min_port = 0;
         max_port = 0;
@@ -204,16 +189,16 @@ void CmdHost::handleNewConn(const json& req, rtc::scoped_refptr<CmdDoneObserver>
 
     rtcconf.set_ice_port_range(min_port, max_port);
 
-    auto iceServersIt = req.find("iceServers");
-    if (iceServersIt != req.end() && iceServersIt->is_array() && iceServersIt->size() > 0) {
+    if (ice_servers.isArray()) {
         webrtc::PeerConnectionInterface::IceServer icesrv = {};
-        for (const auto& ice_server : *iceServersIt) {
-            if (ice_server.is_object()) {
-                auto urlsIt = ice_server.find("urls");
-                if (urlsIt != ice_server.end() && urlsIt->is_array()) {
-                    for (const auto& url : *urlsIt) {
-                        if (url.is_string()) {
-                            auto s = url.get<std::string>();
+
+        for (auto ice_server : ice_servers) {
+            if (ice_server.isObject()) {
+                auto urls = ice_server["urls"];
+                if (urls.isArray()) {
+                    for (auto url : urls) {
+                        if (url.isString()) {
+                            auto s = url.asString();
                             icesrv.urls.push_back(s);
                             Verbose("NewConnIceAddUrl %s", s.c_str());
                         }
@@ -223,7 +208,6 @@ void CmdHost::handleNewConn(const json& req, rtc::scoped_refptr<CmdDoneObserver>
         }
 
         rtcconf.servers.push_back(icesrv);
-
     }
 
     auto conn_observer = new ConnObserver(this);
@@ -235,7 +219,7 @@ void CmdHost::handleNewConn(const json& req, rtc::scoped_refptr<CmdDoneObserver>
         conn_map_[conn->ID()] = conn;
     }
 
-    json res;
+    Json::Value res;
     res[kId] = conn->ID();
     observer->OnSuccess(res);
 }
@@ -253,12 +237,13 @@ Stream* CmdHost::checkStream(const std::string& id, rtc::scoped_refptr<CmdDoneOb
         observer->OnFailure(errStreamNotFound, errStreamNotFoundString);
         return NULL;
     }
+
     return stream;
 }
 
-WRTCConn* CmdHost::checkConn(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
-    auto idIt = req.find(kId);
-    if (idIt == req.end() || !idIt->is_string()) {
+WRTCConn* CmdHost::checkConn(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto id = req[kId];
+    if (!id.isString()) {
         observer->OnFailure(errInvalidParams, errInvalidParamsString);
         return NULL;
     }
@@ -266,7 +251,7 @@ WRTCConn* CmdHost::checkConn(const json& req, rtc::scoped_refptr<CmdDoneObserver
     WRTCConn *conn = NULL;
     {
         std::lock_guard<std::mutex> lock(conn_map_lock_);
-        auto it = conn_map_.find(idIt->get<std::string>());
+        auto it = conn_map_.find(id.asString());
         if (it != conn_map_.end()) {
             conn = it->second;
         }
@@ -284,7 +269,7 @@ public:
     CreateDescObserver(rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) : observer_(observer) {}
 
     void OnSuccess(const std::string& desc) {
-        json res;
+        Json::Value res;
         res[kSdp] = desc;
         observer_->OnSuccess(res);
     }
@@ -295,7 +280,7 @@ public:
     rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer_;
 };
 
-void CmdHost::handleCreateOffer(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
+void CmdHost::handleCreateOffer(const Json::Value& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
     auto conn = checkConn(req, observer);
     if (conn == NULL) {
         return;
@@ -306,7 +291,7 @@ void CmdHost::handleCreateOffer(const json& req, rtc::scoped_refptr<CmdHost::Cmd
     conn->CreateOffer(offeropt, new rtc::RefCountedObject<CreateDescObserver>(observer));
 }
 
-void CmdHost::handleCreateOfferSetLocalDesc(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
+void CmdHost::handleCreateOfferSetLocalDesc(const Json::Value& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
     auto conn = checkConn(req, observer);
     if (conn == NULL) {
         return;
@@ -322,7 +307,7 @@ public:
     SetDescObserver(rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) : observer_(observer) {}
 
     void OnSuccess() {
-        json res;
+        Json::Value res;
         observer_->OnSuccess(res);
     }
     void OnFailure(const std::string& error) {
@@ -332,25 +317,21 @@ public:
     rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer_;
 };
 
-void CmdHost::handleSetLocalDesc(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
+void CmdHost::handleSetLocalDesc(const Json::Value& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
     auto conn = checkConn(req, observer);
     if (conn == NULL) {
         return;
     }
 
-    std::string type = "offer";
-    auto typeIt = req.find("type");
-    if (typeIt != req.end() && typeIt->is_string() && !typeIt->get<std::string>().empty()) {
-        type = typeIt->get<std::string>();
-    }
+    std::string sdp = jsonAsString(req[kSdp]);
+    std::string type = jsonAsString(req["type"]);
 
-    auto sdpIt = req.find(kSdp);
-    if (sdpIt == req.end() || !sdpIt->is_string()) {
-        return;
+    if (type == "") {
+        type = "offer";
     }
 
     webrtc::SdpParseError err;
-    auto desc = CreateSessionDescription(type, sdpIt->get<std::string>(), &err); 
+    auto desc = CreateSessionDescription(type, sdp, &err);
     if (!desc) {
         observer->OnFailure(errInvalidParams, err.description);
         return;
@@ -359,25 +340,21 @@ void CmdHost::handleSetLocalDesc(const json& req, rtc::scoped_refptr<CmdHost::Cm
     conn->SetLocalDesc(desc, new rtc::RefCountedObject<SetDescObserver>(observer));
 }
 
-void CmdHost::handleSetRemoteDesc(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
+void CmdHost::handleSetRemoteDesc(const Json::Value& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
     auto conn = checkConn(req, observer);
     if (conn == NULL) {
         return;
     }
 
-    std::string type = "answer";
-    auto typeIt = req.find("type");
-    if (typeIt != req.end() && typeIt->is_string() && !typeIt->get<std::string>().empty()) {
-        type = typeIt->get<std::string>();
-    }
+    std::string sdp = jsonAsString(req[kSdp]);
+    std::string type = jsonAsString(req["type"]);
 
-    auto sdpIt = req.find(kSdp);
-    if (sdpIt == req.end() || !sdpIt->is_string()) {
-        return;
+    if (type == "") {
+        type = "answer";
     }
 
     webrtc::SdpParseError err;
-    auto desc = CreateSessionDescription(type, sdpIt->get<std::string>(), &err);
+    auto desc = CreateSessionDescription(type, sdp, &err);
     if (!desc) {
         observer->OnFailure(errInvalidParams, err.description);
         return;
@@ -386,19 +363,15 @@ void CmdHost::handleSetRemoteDesc(const json& req, rtc::scoped_refptr<CmdHost::C
     conn->SetRemoteDesc(desc, new rtc::RefCountedObject<SetDescObserver>(observer));
 }
 
-void CmdHost::handleSetRemoteDescCreateAnswer(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
+void CmdHost::handleSetRemoteDescCreateAnswer(const Json::Value& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
     auto conn = checkConn(req, observer);
     if (conn == NULL) {
         return;
     }
 
-    auto sdpIt = req.find(kSdp);
-    if (sdpIt == req.end() || !sdpIt->is_string()) {
-        return;
-    }
-
+    std::string sdp = jsonAsString(req[kSdp]);
     webrtc::SdpParseError err;
-    auto desc = CreateSessionDescription("offer", sdpIt->get<std::string>(), &err);
+    auto desc = CreateSessionDescription("offer", sdp, &err);
     if (!desc) {
         observer->OnFailure(errInvalidParams, err.description);
         return;
@@ -409,45 +382,26 @@ void CmdHost::handleSetRemoteDescCreateAnswer(const json& req, rtc::scoped_refpt
     conn->SetRemoteDescCreateAnswer(answeropt, desc, new rtc::RefCountedObject<CreateDescObserver>(observer));
 }
 
-void CmdHost::handleAddIceCandidate(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
+void CmdHost::handleAddIceCandidate(const Json::Value& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
     auto conn = checkConn(req, observer);
     if (conn == NULL) {
         return;
     }
 
-    auto csIt = req.find(kCandidate);
-    if (csIt == req.end() || !csIt->is_string()) {
-        observer->OnFailure(errInvalidParams, "parse req failed");
-        return;
-    }
-
-    json c = json::parse(csIt->get<std::string>());
-    if (c.is_discarded()) {
+    std::string cs = jsonAsString(req[kCandidate]);
+    Json::Reader jr;
+    Json::Value c;
+    if (!jr.parse(cs.c_str(), cs.c_str()+cs.size(), c, false)) {
         observer->OnFailure(errInvalidParams, "parse candidate failed");
         return;
     }
 
-    auto sdpMidIt = c.find(kSdpMid);
-    if (sdpMidIt == c.end() || !sdpMidIt->is_string()) {
-        observer->OnFailure(errInvalidParams, "parse kSdpMid failed");
-        return;
-    }
-
-    auto sdpMlineIndexIt = c.find(kSdpMLineIndex);
-    if (sdpMlineIndexIt == c.end() || !sdpMlineIndexIt->is_string()) {
-        observer->OnFailure(errInvalidParams, "parse kSdpMLineIndex failed");
-        return;
-    }
-    int sdp_mlineindex = atoi(sdpMlineIndexIt->get<std::string>().c_str());
-
-    auto candidateIt = c.find(kCandidate);
-    if (candidateIt == c.end() || !candidateIt->is_string()) {
-        observer->OnFailure(errInvalidParams, "parse kCandidate failed");
-        return;
-    }
+    std::string sdp_mid = jsonAsString(c[kSdpMid]);
+    int sdp_mlineindex = atoi(jsonAsString(c[kSdpMLineIndex]).c_str());
+    std::string sdp = jsonAsString(c[kCandidate]);
 
     webrtc::SdpParseError err;
-    auto candidate = webrtc::CreateIceCandidate(sdpMidIt->get<std::string>(), sdp_mlineindex, sdpMlineIndexIt->get<std::string>(), &err);
+    auto candidate = webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &err);
     if (!candidate) {
         observer->OnFailure(errInvalidParams, err.description);
         return;
@@ -458,13 +412,13 @@ void CmdHost::handleAddIceCandidate(const json& req, rtc::scoped_refptr<CmdHost:
         return;
     }
 
-    json v;
+    Json::Value v;
     observer->OnSuccess(v);
 }
 
-muxer::AvMuxer* CmdHost::checkLibmuxer(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
-    auto idIt = req.find(kId);
-    if (idIt == req.end() || !idIt->is_string()) {
+muxer::AvMuxer* CmdHost::checkLibmuxer(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto id = req[kId];
+    if (!id.isString()) {
         observer->OnFailure(errInvalidParams, errInvalidParamsString);
         return NULL;
     }
@@ -472,7 +426,7 @@ muxer::AvMuxer* CmdHost::checkLibmuxer(const json& req, rtc::scoped_refptr<CmdDo
     muxer::AvMuxer *m = NULL;
     {
         std::lock_guard<std::mutex> lock(muxers_map_lock_);
-        auto it = muxers_map_.find(idIt->get<std::string>());
+        auto it = muxers_map_.find(id.asString());
         if (it != muxers_map_.end()) {
             m = it->second;
         }
@@ -491,28 +445,19 @@ public:
     LibmuxerOutputStream() {}
 };
 
-void CmdHost::handleNewLibmuxer(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
-    int w = 0;
-    int h = 0;
+void CmdHost::handleNewLibmuxer(const Json::Value& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) {
+    int w = jsonAsInt(req["w"]);
+    int h = jsonAsInt(req["h"]);
 
-    auto wIt = req.find("w");
-    if (wIt != req.end() && wIt->is_number_integer()) {
-        w = wIt->get<int>();
-    }
-    auto hIt = req.find("h");
-    if (hIt != req.end() && hIt->is_number_integer()) {
-        h = hIt->get<int>();
-    }
     if (w == 0 || h == 0) {
         observer->OnFailure(errInvalidParams, "invalid w or h");
         return;
     }
 
-    auto reqid = jsonAsString(req[kReqid]);
+    auto reqid = jsonAsString(req["reqid"]);
     if (reqid == "") {
         reqid = newReqId();
     }
-
     auto m = new muxer::AvMuxer(std::make_shared<XLogger>(reqid), w, h);
     auto id = newReqId();
     {
@@ -520,14 +465,12 @@ void CmdHost::handleNewLibmuxer(const json& req, rtc::scoped_refptr<CmdHost::Cmd
         muxers_map_[id] = m;
     }
 
-    auto audioOnlyIt = req.find("audioOnly");
-    if (audioOnlyIt != req.end() && audioOnlyIt->is_boolean()) {
-        m->audioOnly_.store(audioOnlyIt->get<bool>());
-    }
+    bool audioOnly = jsonAsBool(req["audioOnly"]);
+    m->audioOnly_.store(audioOnly);
 
-    auto fpsIt = req.find("fps");
-    if (fpsIt != req.end() && fpsIt->is_number() && fpsIt->get<int>() > 0) {
-        m->fps_ = fpsIt->get<int>();
+    auto fps = jsonAsInt(req["fps"]);
+    if (fps != 0) {
+        m->fps_ = fps;
     }
 
     auto stream = new LibmuxerOutputStream();
@@ -540,91 +483,64 @@ void CmdHost::handleNewLibmuxer(const json& req, rtc::scoped_refptr<CmdHost::Cmd
 
     m->Start();
 
-    json res;
+    Json::Value res;
     res[kId] = id;
-    res["outputStreamId"] = stream_id;
+    res["output_stream_id"] = stream_id;
     observer->OnSuccess(res);
 }
 
-static void libmuxerSetInputOpt(const std::shared_ptr<muxer::Input>& lin, const json& opt) {
-    if (!opt.is_object()) {
-        return;
-    }
-
-    int w = 0;
-    int h = 0;
-    bool hidden = false;
-
-    auto wIt = opt.find("w");
-    if (wIt != opt.end() && wIt->is_number_integer()) {
-        w = wIt->get<int>();
-    }
-    auto hIt = opt.find("h");
-    if (hIt != opt.end() && hIt->is_number_integer()) {
-        h = hIt->get<int>();
-    }
-
-    if (w == 0 || h == 0) {
-        hidden = true;
-    } else {
-        auto hiddenIt = opt.find("hidden");
-        if (hiddenIt != opt.end() && hiddenIt->is_boolean()) {
-            hidden = hiddenIt->get<bool>();
+static void libmuxerSetInputOpt(const std::shared_ptr<muxer::Input>& lin, const Json::Value& opt) {
+    if (opt.isObject()) {
+        auto w = jsonAsInt(opt["w"]);
+        auto h = jsonAsInt(opt["h"]);
+        auto hidden = jsonAsBool(opt["hidden"]);
+        if (w == 0 || h == 0) {
+            hidden = true;
         }
-    }
+        lin->SetOption("hidden", hidden);
+        lin->SetOption("w", w);
+        lin->SetOption("h", h);
 
-    lin->SetOption("hidden", hidden);
-    lin->SetOption("w", w);
-    lin->SetOption("h", h);
-
-    auto xIt = opt.find("x");
-    if (xIt != opt.end() && xIt->is_number_integer()) {
-        lin->SetOption("x", xIt->get<int>());
-    }
-
-    auto yIt = opt.find("y");
-    if (yIt != opt.end() && yIt->is_number_integer()) {
-        lin->SetOption("y", yIt->get<int>());
-    }
-
-    auto zIt = opt.find("z");
-    if (zIt != opt.end() && zIt->is_number_integer()) {
-        lin->SetOption("z", zIt->get<int>());
-    }
-
-    auto mutedIt = opt.find("muted");
-    if (mutedIt != opt.end() && mutedIt->is_boolean()) {
-        lin->SetOption("muted", mutedIt->get<bool>());
-    }
-
-    auto stretchModeIt = opt.find(muxer::options::stretchMode);
-    if (stretchModeIt != opt.end() && stretchModeIt->is_string() && !stretchModeIt->get<std::string>().empty()) {
-        auto s = stretchModeIt->get<std::string>();
-        int mode = muxer::VideoRescaler::STRETCH_ASPECT_FILL;
-        if (s == muxer::options::stretchAspectFill) {
-            mode = muxer::VideoRescaler::STRETCH_ASPECT_FILL;
-        } else if (s == muxer::options::stretchAspectFit) {
-            mode = muxer::VideoRescaler::STRETCH_ASPECT_FIT;
-        } else if (s == muxer::options::stretchScaleToFit) {
-            mode = muxer::VideoRescaler::STRETCH_SCALE_TO_FIT;
+        auto x = opt["x"];
+        if (!x.empty()) {
+            lin->SetOption("x", jsonAsInt(x));
         }
-        lin->SetOption(muxer::options::stretchMode, mode);
+        auto y = opt["y"];
+        if (!y.empty()) {
+            lin->SetOption("y", jsonAsInt(y));
+        }
+        auto z = opt["z"];
+        if (!z.empty()) {
+            lin->SetOption("z", jsonAsInt(z));
+        }
+        auto muted = opt["muted"];
+        if (!muted.empty()) {
+            lin->SetOption("muted", jsonAsBool(muted));
+        }
+        auto stretchMode = opt[muxer::options::stretchMode];
+        if (!stretchMode.empty()) {
+            auto s = jsonAsString(stretchMode);
+            int mode = muxer::VideoRescaler::STRETCH_ASPECT_FILL;
+            if (s == muxer::options::stretchAspectFill) {
+                mode = muxer::VideoRescaler::STRETCH_ASPECT_FILL;
+            } else if (s == muxer::options::stretchAspectFit) {
+                mode = muxer::VideoRescaler::STRETCH_ASPECT_FIT;
+            } else if (s == muxer::options::stretchScaleToFit) {
+                mode = muxer::VideoRescaler::STRETCH_SCALE_TO_FIT;
+            }
+            lin->SetOption(muxer::options::stretchMode, mode);
+        }
     }
 }
 
-void CmdHost::handleLibmuxerAddInput(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+void CmdHost::handleLibmuxerAddInput(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
     auto m = checkLibmuxer(req, observer);
     if (m == NULL) {
         return;
     }
 
-    Stream *stream = nullptr;
-    std::string id;
-    auto streamIdIt = req.find(kStreamId);
-    if (streamIdIt != req.end() && streamIdIt->is_string()) {
-        id = streamIdIt->get<std::string>();
-        stream = checkStream(id, observer);
-    }
+    auto id = jsonAsString(req[kStreamId]);
+    Stream *stream = checkStream(id, observer);
     if (stream == NULL) {
         return;
     }
@@ -647,69 +563,45 @@ void CmdHost::handleLibmuxerAddInput(const json& req, rtc::scoped_refptr<CmdDone
     }
 
     m->AddInput(id, stream);
-
-    auto optIt = req.find("opt");
-    if (optIt != req.end() && optIt->is_object()) {
-        libmuxerSetInputOpt(m->FindInput(id), *optIt);
-    }
-
+    libmuxerSetInputOpt(m->FindInput(id), req["opt"]);
     m->PrintInputs();
 
-    json res;
+    Json::Value res;
     res[kId] = id;
     res[kSEIKey] = key;
     observer->OnSuccess(res);
 }
 
-void CmdHost::handleLibmuxerRemoveInput(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+void CmdHost::handleLibmuxerRemoveInput(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
     auto m = checkLibmuxer(req, observer);
     if (m == NULL) {
         return;
     }
-
     auto id = jsonAsString(req[kStreamId]);
-
-    auto key = m->GetInputKey(id);
-    auto iter = SeiQueues.find(key);
-    if (iter != SeiQueues.end()) {
-        if (iter->second) {
-            free(iter->second);
-        }
-        SeiQueues.erase(key);
-    }
-
     m->RemoveInput(id);
 
-    auto streamIdIt = req.find(kStreamId);
-    if (streamIdIt != req.end() && streamIdIt->is_string()) {
-        m->RemoveInput(streamIdIt->get<std::string>());
-    }
-
-    json res;
+    Json::Value res;
     observer->OnSuccess(res);
 }
 
-void CmdHost::handleLibmuxerSetInputsOpt(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+void CmdHost::handleLibmuxerSetInputsOpt(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
     auto m = checkLibmuxer(req, observer);
     if (m == NULL) {
         return;
     }
 
-    auto inputsIt = req.find("inputs");
-    if (inputsIt != req.end() && inputsIt->is_array()) {
-        for (const auto& input : *inputsIt) {
-            auto idIt = input.find(kId);
-            auto optIt = input.find("opt");
-            if (idIt != input.end() && idIt->is_string() && optIt != input.end() && optIt->is_object()) {
-                auto lin = m->FindInput(idIt->get<std::string>());
-                if (lin != nullptr) {
-                    libmuxerSetInputOpt(lin, *optIt);
-                }
+    auto inputs = req["inputs"];
+    if (inputs.isArray()) {
+        for (auto input : inputs) {
+            auto id = jsonAsString(input[kId]);
+            auto lin = m->FindInput(id);
+            if (lin != nullptr) {
+                libmuxerSetInputOpt(lin, input["opt"]);
             }
         }
     }
 
-    json res;
+    Json::Value res;
     observer->OnSuccess(res);
 }
 
@@ -719,11 +611,10 @@ public:
     }
 
     void OnFrame(const std::shared_ptr<muxer::MediaFrame>& frame) {
-        json res;
+        Json::Value res;
         res[kId] = sinkid;
-        res["pts"] = uint64_t(frame->TimeStamp());
-        auto rawData = std::vector<uint8_t>(frame->rawpkt.data(), frame->rawpkt.data() + frame->rawpkt.size());
-        res["rawpkt"] = json::binary(rawData);
+        res["pts"] = Json::UInt64(frame->TimeStamp());
+        res["rawpkt"] = rtc::Base64::Encode(frame->rawpkt);
         h->writeMessage(mtSinkRawpkt, res);
     }
 
@@ -732,97 +623,78 @@ private:
     std::string sinkid;
 };
 
-void CmdHost::handleStreamAddSink(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
-    auto idIt = req.find(kId);
-    if (idIt == req.end() || !idIt->is_string()) {
-        observer->OnFailure(errInvalidParams, "id");
-        return;
-    }
-
-    auto stream = checkStream(idIt->get<std::string>(), observer);
-    if (stream == nullptr) {
-        observer->OnFailure(errInvalidParams, "stream id");
+void CmdHost::handleStreamAddSink(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto stream = checkStream(jsonAsString(req[kId]), observer);
+    if (stream == NULL) {
         return;
     }
 
     auto sinkid = newReqId();
 
-    auto rawIt = req.find("raw");
-    if (rawIt != req.end() && rawIt->is_boolean() && rawIt->get<bool>()) {
+    auto raw = jsonAsBool(req["raw"]);
+    if (raw) {
         auto sink = new RawpktSink(this, sinkid);
         stream->AddSink(sinkid, sink);
 
-        json res;
+        Json::Value res;
         res[kId] = sinkid;
         observer->OnSuccess(res);
         return;
     }
 
-    auto urlIt = req.find("url");
-    if (urlIt == req.end() || !(urlIt->is_string()) || urlIt->get<std::string>().empty()) {
+    auto url = jsonAsString(req["url"]);
+    if (url == "") {
         observer->OnFailure(errInvalidParams, "url invalid");
         return;
     }
 
-    std::string reqid;
-    auto reqidIt = req.find("reqid");
-    if (reqidIt != req.end() && reqidIt->is_string() && !reqidIt->get<std::string>().empty()) {
-        reqid = reqidIt->get<std::string>();
-    } else {
-        reqid = newReqId();
+    auto reqid = jsonAsString(req["reqid"]);
+    if (reqid == "") {
+        reqid = sinkid;
     }
 
-    auto sink = new muxer::RtmpSink(urlIt->get<std::string>(), std::make_shared<XLogger>(reqid));
+    auto sink = new muxer::RtmpSink(url, std::make_shared<XLogger>(reqid));
 
-    auto kbpsIt = req.find("kbps");
-    if (kbpsIt != req.end() && kbpsIt->is_number() && kbpsIt->get<int>() != 0) {
-        sink->videoKbps = kbpsIt->get<int>();
+    auto kbps = jsonAsInt(req["kbps"]);
+    if (kbps != 0) {
+        sink->videoKbps = kbps;
     }
 
-    auto minRateIt = req.find("minRate");
-    if (minRateIt != req.end() && minRateIt->is_number() && minRateIt->get<int>() != 0) {
-        sink->videoMinRate = minRateIt->get<int>();
+    auto minRate = jsonAsInt(req["minRate"]);
+    if (minRate != 0) {
+        sink->videoMinRate = minRate;
     }
 
-    auto maxRateIt = req.find("maxRate");
-    if (maxRateIt != req.end() && maxRateIt->is_number() && maxRateIt->get<int>() != 0) {
-        sink->videoMaxRate = maxRateIt->get<int>();
+    auto maxRate = jsonAsInt(req["maxRate"]);
+    if (maxRate != 0) {
+        sink->videoMaxRate = maxRate;
     }
 
-    auto gopIt = req.find("gop");
-    if (gopIt != req.end() && gopIt->is_number() && gopIt->get<int>() != 0) {
-        sink->videoGop = gopIt->get<int>();
+    auto gop = jsonAsInt(req["gop"]);
+    if (gop != 0) {
+        sink->videoGop = gop;
     }
 
-    auto fpsIt = req.find("fps");
-    if (fpsIt != req.end() && fpsIt->is_number() && fpsIt->get<int>() != 0) {
-        sink->videoFps = fpsIt->get<int>();
+    auto fps = jsonAsInt(req["fps"]);
+    if (fps != 0) {
+        sink->videoFps = fps;
     }
 
     stream->AddSink(sinkid, sink);
 
-    json res;
+    Json::Value res;
     res[kId] = sinkid;
     observer->OnSuccess(res);
 }
 
-void CmdHost::handleStreamRemoveSink(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
-    auto idIt = req.find(kId);
-    if (idIt == req.end() || !idIt->is_string()) {
-        observer->OnFailure(errInvalidParams, "id");
+void CmdHost::handleStreamRemoveSink(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto stream = checkStream(jsonAsString(req[kId]), observer);
+    if (stream == NULL) {
         return;
     }
 
-    auto stream = checkStream(idIt->get<std::string>(), observer);
-    if (stream == nullptr) {
-        return;
-    }
-
-    auto sinkIdIt = req.find("sinkId");
-    if (sinkIdIt != req.end()
-      && sinkIdIt->is_string()
-      && !stream->RemoveSink(sinkIdIt->get<std::string>()))
-    {
+    auto id = jsonAsString(req["sinkId"]);
+    if (!stream->RemoveSink(id)) {
         observer->OnFailure(errInvalidParams, "sink not found");
         return;
     }
@@ -926,14 +798,13 @@ public:
     std::atomic<uint32_t> bg_;
 };
 
-void CmdHost::handleNewUrlStream(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
-    auto stream_id = newReqId();
-    std::string reqid;
+void CmdHost::handleNewUrlStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto url = jsonAsString(req["url"]);
 
-    auto reqidIt = req.find("reqid");
-    if (reqidIt != req.end() && reqidIt->is_string() && !reqidIt->get<std::string>().empty()) {
-        reqid = reqidIt->get<std::string>();
-    } else {
+    auto stream_id = newReqId();
+
+    auto reqid = jsonAsString(req["reqid"]);
+    if (reqid == "") {
         reqid = stream_id;
     }
 
@@ -941,52 +812,41 @@ void CmdHost::handleNewUrlStream(const json& req, rtc::scoped_refptr<CmdDoneObse
     input->nativeRate_ = true;
     input->doResample_ = false;
 
-    auto isPicIt = req.find("isPic");
-    if (isPicIt != req.end() && isPicIt->is_boolean() && isPicIt->get<bool>()) {
+    if (jsonAsBool(req["isPic"])) {
         input->singleFrame_ = true;
         input->doRescale_ = true;
     }
 
-    auto urlIt = req.find("url");
-    if (urlIt == req.end() || !urlIt->is_string()) {
-        observer->OnFailure(errInvalidParams, "url");
-        return;
-    }
     //input->resampler_.frameSize = int(muxer::AudioResampler::SAMPLE_RATE * 0.01);
-    input->Start(urlIt->get<std::string>());
+    input->Start(url);
 
     {
         std::lock_guard<std::mutex> lock(streams_map_lock_);
         streams_map_[stream_id] = input;
     }
-    json res;
+    Json::Value res;
     res[kId] = stream_id;
     observer->OnSuccess(res);
 }
 
-void CmdHost::handleNewCanvasStream(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+void CmdHost::handleNewCanvasStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    int fps = jsonAsInt(req["fps"]);
+    int w = jsonAsInt(req["w"]);
+    int h = jsonAsInt(req["h"]);
+    uint32_t bg = (int)jsonAsInt(req["bg"]);
+
     CanvasStream *stream = new CanvasStream();
 
-    auto fpsIt = req.find("fps");
-    if (fpsIt != req.end() && fpsIt->is_number_integer() && fpsIt->get<int>() > 0) {
-        stream->fps_.store(fpsIt->get<int>());
+    if (fps) {
+        stream->fps_.store(fps);
     }
-
-    auto wIt = req.find("w");
-    if (wIt != req.end() && wIt->is_number_integer() && wIt->get<int>() > 0) {
-        stream->w_.store(wIt->get<int>());
+    if (w) {
+        stream->w_.store(w);
     }
-
-    auto hIt = req.find("h");
-    if (hIt != req.end() && hIt->is_number_integer() && hIt->get<int>() > 0) {
-        stream->h_.store(hIt->get<int>());
+    if (h) {
+        stream->h_.store(h);
     }
-
-    auto bgIt = req.find("bg");
-    if (bgIt != req.end() && bgIt->is_number_integer()) {
-        stream->bg_.store(bgIt->get<uint32_t>());
-    }
-
+    stream->bg_.store(bg);
     stream->Start();
 
     auto stream_id = newReqId();
@@ -994,23 +854,19 @@ void CmdHost::handleNewCanvasStream(const json& req, rtc::scoped_refptr<CmdDoneO
         std::lock_guard<std::mutex> lock(streams_map_lock_);
         streams_map_[stream_id] = stream;
     }
-    json res;
+    Json::Value res;
     res[kId] = stream_id;
     observer->OnSuccess(res);
 }
 
-void CmdHost::handleConnAddStream(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+void CmdHost::handleConnAddStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
     auto conn = checkConn(req, observer);
-    if (conn == nullptr) {
+    if (conn == NULL) {
         return;
     }
 
-    Stream *stream = nullptr;
-    auto streamIdIt = req.find("streamId");
-    if (streamIdIt != req.end() && streamIdIt->is_string()) {
-        stream = checkStream(streamIdIt->get<std::string>(), observer);
-    }
-    if (stream == nullptr) {
+    auto stream = checkStream(jsonAsString(req["stream_id"]), observer);
+    if (stream == NULL) {
         return;
     }
 
@@ -1020,12 +876,12 @@ void CmdHost::handleConnAddStream(const json& req, rtc::scoped_refptr<CmdDoneObs
         return;
     }
 
-    json res;
+    Json::Value res;
     for (auto track : tracks) {
-        json v;
+        Json::Value v;
         v["id"] = track->id();
         v["kind"] = track->kind();
-        res["tracks"].push_back(v);
+        res["tracks"].append(v);
     }
 
     observer->OnSuccess(res);
@@ -1036,7 +892,7 @@ public:
     ConnGetStatsObserver(rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer) : observer_(observer) {}
 
     void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) {
-        json res;
+        Json::Value res;
         res["stats"] = report->ToJson();
         observer_->OnSuccess(res);
     }
@@ -1047,7 +903,7 @@ public:
     rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer_;
 };
 
-void CmdHost::handleConnStats(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+void CmdHost::handleConnStats(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
     auto conn = checkConn(req, observer);
     if (conn == NULL) {
         return;
@@ -1055,57 +911,38 @@ void CmdHost::handleConnStats(const json& req, rtc::scoped_refptr<CmdDoneObserve
     conn->GetStats(new ConnGetStatsObserver(observer));
 }
 
-void CmdHost::handleNewRawStream(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+void CmdHost::handleNewRawStream(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
     auto stream_id = newReqId();
     auto stream = new Stream();
     {
         std::lock_guard<std::mutex> lock(streams_map_lock_);
         streams_map_[stream_id] = stream;
     }
-    json res;
+    Json::Value res;
     res[kId] = stream_id;
     observer->OnSuccess(res);
 }
 
-void CmdHost::handleRawStreamSendPacket(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
-    Stream *stream = nullptr;
-    auto idIt = req.find(kId);
-    if (idIt != req.end() && idIt->is_string()) {
-        stream = checkStream(idIt->get<std::string>(), observer);
-    }
-    if (stream == nullptr) {
+void CmdHost::handleRawStreamSendPacket(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto stream = checkStream(jsonAsString(req[kId]), observer);
+    if (stream == NULL) {
         return;
     }
 
-    auto rawpktIt = req.find("rawpkt");
-    if (rawpktIt != req.end() && rawpktIt->is_binary()) {
-        auto& rawpktVector = rawpktIt->get_binary();
-        if(rawpktVector.size()>0){ // To avoid bad access
-            stream->SendFrame(std::make_shared<muxer::MediaFrame>((char *)std::addressof(rawpktVector[0]), rawpktVector.size()));
-            observer->OnSuccess();
-        }else{
-            observer->OnFailure(errInvalidParams, "no rawpkt sent");
-        }
-    }
+    auto rawpkt = rtc::Base64::Decode(jsonAsString(req["rawpkt"]), rtc::Base64::DecodeOption::DO_LAX);
+    stream->SendFrame(std::make_shared<muxer::MediaFrame>(rawpkt));
 
+    observer->OnSuccess();
 }
 
-void CmdHost::handleSinkStats(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
-    Stream *stream = nullptr;
-    auto idIt = req.find(kId);
-    if (idIt != req.end() && idIt->is_string()) {
-        stream = checkStream(idIt->get<std::string>(), observer);
-    }
-    if (stream == nullptr) {
+void CmdHost::handleSinkStats(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto stream = checkStream(jsonAsString(req[kId]), observer);
+    if (stream == NULL) {
         return;
     }
 
-    SinkObserver *sink = nullptr;
-    auto sinkIdIt = req.find(kSinkId);
-    if (sinkIdIt != req.end() && sinkIdIt->is_string()) {
-        sink = stream->FindSink(sinkIdIt->get<std::string>());
-    }
-    if (sink == nullptr) {
+    auto sink = stream->FindSink(jsonAsString(req[kSinkId]));
+    if (sink == NULL) {
         observer->OnFailure(errInvalidParams, "sink not found");
         return;
     }
@@ -1113,27 +950,19 @@ void CmdHost::handleSinkStats(const json& req, rtc::scoped_refptr<CmdDoneObserve
     int64_t bytes = 0;
     sink->OnStatBytes(bytes);
 
-    json res;
+    Json::Value res;
     res["bytes"] = int(bytes);
     observer->OnSuccess(res);
 }
 
-void CmdHost::handleRequestKeyFrame(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
-    Stream *stream = nullptr;
-    auto idIt = req.find(kId);
-    if (idIt != req.end() && idIt->is_string()) {
-        stream = checkStream(idIt->get<std::string>(), observer);
-    }
-    if (stream == nullptr) {
+void CmdHost::handleRequestKeyFrame(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto stream = checkStream(jsonAsString(req[kId]), observer);
+    if (stream == NULL) {
         return;
     }
 
-    SinkObserver *sink = nullptr;
-    auto sinkIdIt = req.find(kSinkId);
-    if (sinkIdIt != req.end() && sinkIdIt->is_string()) {
-        sink = stream->FindSink(sinkIdIt->get<std::string>());
-    }
-    if (sink == nullptr) {
+    auto sink = stream->FindSink(jsonAsString(req[kSinkId]));
+    if (sink == NULL) {
         observer->OnFailure(errInvalidParams, "sink not found");
         return;
     }
@@ -1142,33 +971,22 @@ void CmdHost::handleRequestKeyFrame(const json& req, rtc::scoped_refptr<CmdDoneO
     observer->OnSuccess();
 }
 
-void CmdHost::handleSinkDontReconnect(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
-    Stream *stream = nullptr;
-    auto idIt = req.find(kId);
-    if (idIt != req.end() && idIt->is_string()) {
-        stream = checkStream(idIt->get<std::string>(), observer);
-    }
-    if (stream == nullptr) {
+void CmdHost::handleSinkDontReconnect(const Json::Value& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto stream = checkStream(jsonAsString(req[kId]), observer);
+    if (stream == NULL) {
         return;
     }
 
-    SinkObserver *sink = nullptr;
-    auto sinkIdIt = req.find(kSinkId);
-    if (sinkIdIt != req.end() && sinkIdIt->is_string()) {
-        sink = stream->FindSink(sinkIdIt->get<std::string>());
-    }
-    if (sink == nullptr) {
+    auto sink = stream->FindSink(jsonAsString(req[kSinkId]));
+    if (sink == NULL) {
         observer->OnFailure(errInvalidParams, "sink not found");
         return;
     }
 
     auto rtmpSink = static_cast<muxer::RtmpSink *>(sink);
-
-    auto dontReconnectIt = req.find("dontReconnect");
-    if (dontReconnectIt != req.end() && dontReconnectIt->is_boolean() && rtmpSink != nullptr) {
-        rtmpSink->dont_reconnect = dontReconnectIt->get<bool>();
+    if (rtmpSink != NULL) {
+        rtmpSink->dont_reconnect = jsonAsBool(req["dont_reconnect"]);
     }
-
     observer->OnSuccess();
 }
 
@@ -1194,12 +1012,12 @@ void CmdHost::handleSinkSEIKey(const Json::Value& req, rtc::scoped_refptr<CmdDon
 class CmdDoneWriteResObserver: public CmdHost::CmdDoneObserver {
 public:
     CmdDoneWriteResObserver(rtc::scoped_refptr<MsgPump::Request> req) : req_(req) {}
-    void OnSuccess(json& res) {
+    void OnSuccess(Json::Value& res) {
         res[kCode] = 0;
         req_->WriteResponse(res);
     }
     void OnFailure(int code, const std::string& error) {
-        json res;
+        Json::Value res;
         res[kCode] = code;
         res[kError] = error;
         req_->WriteResponse(res);
@@ -1207,13 +1025,13 @@ public:
     rtc::scoped_refptr<MsgPump::Request> req_;
 };
 
-void CmdHost::handleMsg(const std::string& type, const json& body) {
+void CmdHost::handleMsg(const std::string& type, const Json::Value& body) {
 }
 
 void CmdHost::handleReq(rtc::scoped_refptr<MsgPump::Request> req) {
     auto type = req->type;
     if (type == mtEcho) {
-        json res = req->body;
+        Json::Value res = req->body;
         req->WriteResponse(res);
     } else if (type == mtNewConn) {
         handleNewConn(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
@@ -1270,7 +1088,7 @@ public:
     void OnRequest(rtc::scoped_refptr<MsgPump::Request> req) {
         h_->handleReq(req);
     }
-    void OnMessage(const std::string& type, const json& body) {
+    void OnMessage(const std::string& type, const Json::Value& body) {
         h_->handleMsg(type, body);
     }
     CmdHost* h_;
