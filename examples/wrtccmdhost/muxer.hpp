@@ -59,7 +59,6 @@ namespace muxer
                 std::shared_ptr<Output> FindOutput(IN const std::string& name);
                 void FeedOutputs(IN std::shared_ptr<MediaFrame>& pFrame, IN double pts);
 
-                std::shared_ptr<Output> GetDefaultOutput();
                 void SetInputKey(IN const std::string &id, IN const std::string &key);
                 std::string GetInputKey(IN const std::string &id);
                 void RemoveInputKey(IN const std::string &id);

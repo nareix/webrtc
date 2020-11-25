@@ -242,13 +242,6 @@ std::shared_ptr<Output> AvMuxer::FindOutput(IN const std::string& _name)
         return p;
 }
 
-
-std::shared_ptr<Output> AvMuxer::GetDefaultOutput() {
-        std::shared_ptr<Output> p = nullptr;
-        outputs_.Peek(p);
-        return p;
-}
-
 int AvMuxer::Start()
 {
         tstart_ = now_f();
@@ -421,9 +414,6 @@ int VideoMuxer::Mux(IN std::vector<std::shared_ptr<MediaFrame>>& _frames, OUT st
                 if (pFrame == nullptr) {
                         Warn("internal: got 1 null frame, something was wrong");
                         continue;
-                }
-                if (isBgColor(pFrame)) {
-                        Info("VideoMuxer frame is bgColor, x:%d, y:%d, w:%d, h:%d, z:%d, Muxed w:%d, h:%d", pFrame->X(), pFrame->Y(), pFrame->AvFrame()->width, pFrame->AvFrame()->height, pFrame->Z(), nCanvasW_, nCanvasH_);        
                 }
                 merge::Overlay(pFrame, pMuxed, true);
         }
