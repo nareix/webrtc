@@ -81,6 +81,7 @@ namespace muxer
 
                 // internal clock to generate pts
                 std::mutex clockLck_;
+                std::mutex inputKeyLck_;
 
                 double tstart_ = 0;
         };

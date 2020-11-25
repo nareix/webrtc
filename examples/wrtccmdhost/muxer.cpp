@@ -343,10 +343,12 @@ void AvMuxer::FeedOutputs(IN std::shared_ptr<MediaFrame>& _pFrame, double pts)
 }
 
 void AvMuxer::SetInputKey(IN const std::string &id, IN const std::string &key) {
+        std::lock_guard<std::mutex> lock(inputKeyLck_);
         inputKeys_.insert(std::make_pair(id, key));
 }
 
 std::string AvMuxer::GetInputKey(IN const std::string &id) {
+        std::lock_guard<std::mutex> lock(inputKeyLck_);
         auto iter = inputKeys_.find(id);
         if (iter != inputKeys_.end()) {
                 return iter->second;
@@ -356,6 +358,7 @@ std::string AvMuxer::GetInputKey(IN const std::string &id) {
 }
 
 void AvMuxer::RemoveInputKey(IN const std::string &id) {
+        std::lock_guard<std::mutex> lock(inputKeyLck_);
         auto iter = inputKeys_.find(id);
         if (iter != inputKeys_.end()) {
                 inputKeys_.erase(id);
