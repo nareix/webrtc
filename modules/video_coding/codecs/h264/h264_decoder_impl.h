@@ -73,7 +73,7 @@ class H264DecoderImpl : public H264Decoder {
   // Called by FFmpeg when it is done with a video frame, see |AVGetBuffer2|.
   static void AVFreeBuffer2(void* opaque, uint8_t* data);
 
-  void ExtraSEIAndEnqueue(std::list<AVPacket *>& queue, const uint8_t *buffer, const uint32_t length);
+  void ExtractSEIAndEnqueue(std::list<AVPacket *>* queue, const uint8_t *buffer, const uint32_t length);
   const uint8_t* FindStartCode(const uint8_t *p, const uint8_t *end, uint32_t *length);
 
   bool IsInitialized() const;

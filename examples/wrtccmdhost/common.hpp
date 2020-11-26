@@ -216,6 +216,7 @@ namespace muxer
                 const std::string stretchAspectFill  = "aspectFill";
                 const std::string stretchAspectFit = "aspectFit";
                 const std::string stretchScaleToFit  = "scaleToFit";
+                const std::string supportSEI  = "supportSEI";
         }
 
         class OptionMap

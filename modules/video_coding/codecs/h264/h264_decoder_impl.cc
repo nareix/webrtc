@@ -337,7 +337,7 @@ int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
     auto key = iter->first;
     std::string::size_type idx = key.find(ssrc);
     if (idx != std::string::npos) {
-        this->ExtraSEIAndEnqueue(*iter->second, input_image._buffer, input_image._length);
+        this->ExtractSEIAndEnqueue(iter->second, input_image._buffer, input_image._length);
     }
   }
 
@@ -469,16 +469,17 @@ void H264DecoderImpl::ReportError() {
   has_reported_error_ = true;
 }
 
-void H264DecoderImpl::ExtraSEIAndEnqueue(std::list<AVPacket *>& queue, const uint8_t *buffer, const uint32_t length) {
+void H264DecoderImpl::ExtractSEIAndEnqueue(std::list<AVPacket *>* queue, const uint8_t *buffer, const uint32_t length) {
   if (!buffer || 0 == length) {
-    LOG(LS_WARNING) << "ExtraSEIAndEnqueue buffer is empty";
+    LOG(LS_WARNING) << "ExtractSEIAndEnqueue buffer is empty";
     return;
   }
 
-  //std::ofstream outfile;
-  //outfile.open("dump.h264", std::ios::app|std::ios::binary);
-  //outfile.write(reinterpret_cast<const char *>(buffer), length);
-  //outfile.close();
+  if (!queue) {
+    LOG(LS_WARNING) << "ExtractSEIAndEnqueue queue is null";
+    return;
+  }
+
 
   const uint8_t *end = buffer + length;
   const uint8_t *p = NULL, *nalu_start = NULL;

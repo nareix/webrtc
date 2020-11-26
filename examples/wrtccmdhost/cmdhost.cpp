@@ -9,6 +9,9 @@ const std::string kReqid = "reqid";
 const std::string kId = "id";
 const std::string kStreamId = "stream_id";
 const std::string kSinkId = "sink_id";
+const std::string kSupportSEI = "supportSEI";
+const std::string kSEIKey = "seiKey";
+const std::string kSEIChange = "seiChange";
 const std::string kCode = "code";
 const std::string kError = "error";
 const std::string kSdp = "sdp";
@@ -500,6 +503,7 @@ static void libmuxerSetInputOpt(const std::shared_ptr<muxer::Input>& lin, const 
         lin->SetOption("hidden", hidden);
         lin->SetOption("w", w);
         lin->SetOption("h", h);
+        lin->SetOption("supportSEI", jsonAsBool(opt[kSupportSEI]));
 
         auto x = opt["x"];
         if (!x.empty()) {
@@ -546,20 +550,23 @@ void CmdHost::handleLibmuxerAddInput(const Json::Value& req, rtc::scoped_refptr<
     }
 
     std::string key = "";
-    auto support = jsonAsBool(req[kSupportSEI]);
-    if (support) {
-        auto reqid = jsonAsString(req[kReqid]);
-        key = id + "." + reqid;
-        std::list<AVPacket *>* queue = new std::list<AVPacket *>;
-        auto iter = SeiQueues.find(key);
-        if (iter != SeiQueues.end()) {
-            if (iter->second) {
-                free(iter->second);
-            }
-            SeiQueues.erase(iter);
-        }
-        SeiQueues.emplace(std::make_pair(key, queue));
-        m->SetInputKey(id, key);
+    auto opt = req["opt"];
+    if (opt.isObject()) {
+	    bool support = jsonAsBool(opt[kSupportSEI]);
+	    if (support) {
+		    auto reqid = newReqId();
+		    key = id + "." + reqid;
+		    std::list<AVPacket *>* queue = new std::list<AVPacket *>;
+		    auto iter = SeiQueues.find(key);
+		    if (iter != SeiQueues.end()) {
+			    if (iter->second) {
+				    delete(iter->second);
+			    }
+			    SeiQueues.erase(iter);
+		    }
+		    SeiQueues.emplace(std::make_pair(key, queue));
+		    m->SetInputKey(id, key);
+	    }
     }
 
     m->AddInput(id, stream);
@@ -578,6 +585,16 @@ void CmdHost::handleLibmuxerRemoveInput(const Json::Value& req, rtc::scoped_refp
         return;
     }
     auto id = jsonAsString(req[kStreamId]);
+
+    auto key = m->GetInputKey(id);
+    auto iter = SeiQueues.find(key);
+    if (iter != SeiQueues.end()) {
+        if (iter->second) {
+            delete(iter->second);
+        }
+        SeiQueues.erase(key);
+    }
+
     m->RemoveInput(id);
 
     Json::Value res;
@@ -590,18 +607,42 @@ void CmdHost::handleLibmuxerSetInputsOpt(const Json::Value& req, rtc::scoped_ref
         return;
     }
 
+    auto seiChange = false;
+    std::string key = "";
     auto inputs = req["inputs"];
     if (inputs.isArray()) {
         for (auto input : inputs) {
             auto id = jsonAsString(input[kId]);
             auto lin = m->FindInput(id);
             if (lin != nullptr) {
-                libmuxerSetInputOpt(lin, input["opt"]);
-            }
-        }
+		    int prev;
+		    lin->GetOption(muxer::options::supportSEI, prev);
+		    auto req = input["opt"];
+		    auto support = jsonAsBool(req[kSupportSEI]);
+		    seiChange = (prev != support) ? true : false;
+		    libmuxerSetInputOpt(lin, req);
+
+		    if (seiChange && support) {
+			    auto reqid = newReqId();
+			    key = id + "." + reqid;
+			    std::list<AVPacket *>* queue = new std::list<AVPacket *>;
+			    auto iter = SeiQueues.find(key);
+			    if (iter != SeiQueues.end()) {
+				    if (iter->second) {
+					    delete(iter->second);
+				    }
+				    SeiQueues.erase(iter);
+			    }
+			    SeiQueues.emplace(std::make_pair(key, queue));
+			    m->SetInputKey(id, key);
+		    }
+	    }
+	}
     }
 
     Json::Value res;
+    res[kSEIChange] = seiChange;
+    res[kSEIKey] = key;
     observer->OnSuccess(res);
 }
 
