@@ -1,6 +1,18 @@
 #ifndef __UTIL_HPP__
 #define __UTIL_HPP__
 
+#ifndef IN
+#define IN
+#endif
+
+#ifndef OUT
+#define OUT
+#endif
+
+#ifndef INOUT
+#define INOUT
+#endif
+
 #include <memory>
 #include <algorithm>
 
@@ -126,7 +138,7 @@ SharedQueue<T>::SharedQueue(size_t _nItems):
 
 template <class T>
 bool SharedQueue<T>::Peek(T& _item)
-{      
+{
         std::unique_lock<std::mutex> mutexLock(m_mutex);
         if (m_queue.empty()) {
                 return false;
@@ -145,7 +157,7 @@ bool SharedQueue<T>::PopWithTimeout(T& _item, const std::chrono::milliseconds& _
         if (m_queue.empty()) {
                 auto ret = m_consumerCondition.wait_for(mutexLock, _timeout);
                 if (ret == std::cv_status::timeout) {
-                        return false; 
+                        return false;
                 }
         }
         if (!m_queue.empty()) {
@@ -326,6 +338,33 @@ static inline std::string newReqId() {
 
 static inline int fpwrite(FILE *fp, void *buf, size_t len) {
         return fwrite(buf, 1, len, fp) != len ? -1 : 0;
+}
+
+static inline bool jsonGetString(IN const json& _json, IN const std::string _name, OUT std::string& _value) {
+    auto findIt = _json.find(_name);
+    if (findIt != _json.end() && findIt->is_string()) {
+        _value = findIt->get<std::string>();
+        return true;
+    }
+    return false;
+}
+
+static inline bool jsonGetInt(IN const json& _json, IN const std::string _name, OUT int& _value) {
+    auto findIt = _json.find(_name);
+    if (findIt != _json.end() && findIt->is_number()) {
+        _value = findIt->get<int>();
+        return true;
+    }
+    return false;
+}
+
+static inline bool jsonGetBool(IN const json& _json, IN const std::string _name, OUT bool& _value) {
+    auto findIt = _json.find(_name);
+    if (findIt != _json.end() && findIt->is_boolean()) {
+        _value = findIt->get<bool>();
+        return true;
+    }
+    return false;
 }
 
 class XLogger {
