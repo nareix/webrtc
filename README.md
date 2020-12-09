@@ -33,7 +33,7 @@ started developing with the native code.
 ```
 solutions = [
   {
-    "url": "https://github.com/qbox/webrtc.git",
+    "url": "git@github.com:qbox/webrtc.git",
     "managed": False,
     "name": "src",
     "deps_file": "DEPS",
@@ -48,22 +48,10 @@ solutions = [
 gclient sync
 ```
 
-编译 x264/fdkaac：
-
-```
-cd src/third_party/x264
-./conf.sh
-make install
-
-cd src/third_party/fdkaac
-./conf.sh
-make install
-```
-
 编译 wrtccmdhost：
 
 ```
+cd src
 gn gen out/Default --args="is_debug=false"
 ninja -C out/Default wrtccmdhost
 ```
-
