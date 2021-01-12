@@ -182,6 +182,242 @@ hooks = [
       'src/third_party/xz/build.sh',
     ],
   },
+  {
+    # This clobbers when necessary (based on get_landmines.py). It should be
+    # an early hook but it will need to be run after syncing Chromium and
+    # setting up the links, so the script actually exists.
+    'name': 'landmines',
+    'pattern': '.',
+    'action': [
+        'python',
+        'src/build/landmines.py',
+        '--landmine-scripts',
+        'src/tools_webrtc/get_landmines.py',
+        '--src-dir',
+        'src',
+    ],
+  },
+  {
+    # Ensure that the DEPS'd "depot_tools" has its self-update capability
+    # disabled.
+    'name': 'disable_depot_tools_selfupdate',
+    'pattern': '.',
+    'action': [
+        'python',
+        'src/third_party/depot_tools/update_depot_tools_toggle.py',
+        '--disable',
+    ],
+  },
+  {
+    # Downloads the current stable linux sysroot to build/linux/ if needed.
+    # This sysroot updates at about the same rate that the chrome build deps
+    # change. This script is a no-op except for linux users who are doing
+    # official chrome builds or cross compiling.
+    'name': 'sysroot',
+    'pattern': '.',
+    'condition': 'checkout_linux',
+    'action': ['python', 'src/build/linux/sysroot_scripts/install-sysroot.py',
+               '--running-as-hook'],
+  },
+  {
+    # Update the Windows toolchain if necessary. Must run before 'clang' below.
+    'name': 'win_toolchain',
+    'pattern': '.',
+    # TODO(thakis): Put some condition here. Not just host_os == 'win', because
+    # we also need this for (mac|linux) -> win cross builds.
+    'action': ['python', 'src/build/vs_toolchain.py', 'update'],
+  },
+  {
+    # Update the Mac toolchain if necessary.
+    'name': 'mac_toolchain',
+    'pattern': '.',
+    'condition': 'checkout_mac',
+    'action': ['python', 'src/build/mac_toolchain.py'],
+  },
+  # Pull binutils for linux, enabled debug fission for faster linking /
+  # debugging when used with clang on Ubuntu Precise.
+  # https://code.google.com/p/chromium/issues/detail?id=352046
+  {
+    'name': 'binutils',
+    'pattern': 'src/third_party/binutils',
+    'condition': 'host_os == "linux"',
+    'action': [
+        'python',
+        'src/third_party/binutils/download.py',
+    ],
+  },
+  {
+    # Note: On Win, this should run after win_toolchain, as it may use it.
+    'name': 'clang',
+    'pattern': '.',
+    'action': ['python', 'src/tools/clang/scripts/update.py'],
+  },
+  {
+    # Update LASTCHANGE.
+    'name': 'lastchange',
+    'pattern': '.',
+    'action': ['python', 'src/build/util/lastchange.py',
+               '-o', 'src/build/util/LASTCHANGE'],
+  },
+  # Pull GN binaries.
+  {
+    'name': 'gn_win',
+    'pattern': '.',
+    'condition': 'host_os == "win"',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=win32',
+                '--no_auth',
+                '--bucket', 'chromium-gn',
+                '-s', 'src/buildtools/win/gn.exe.sha1',
+    ],
+  },
+  {
+    'name': 'gn_mac',
+    'pattern': '.',
+    'condition': 'host_os == "mac"',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=darwin',
+                '--no_auth',
+                '--bucket', 'chromium-gn',
+                '-s', 'src/buildtools/mac/gn.sha1',
+    ],
+  },
+  {
+    'name': 'gn_linux64',
+    'pattern': '.',
+    'condition': 'host_os == "linux"',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=linux*',
+                '--no_auth',
+                '--bucket', 'chromium-gn',
+                '-s', 'src/buildtools/linux64/gn.sha1',
+    ],
+  },
+  # Pull clang-format binaries using checked-in hashes.
+  {
+    'name': 'clang_format_win',
+    'pattern': '.',
+    'condition': 'host_os == "win"',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=win32',
+                '--no_auth',
+                '--bucket', 'chromium-clang-format',
+                '-s', 'src/buildtools/win/clang-format.exe.sha1',
+    ],
+  },
+  {
+    'name': 'clang_format_mac',
+    'pattern': '.',
+    'condition': 'host_os == "mac"',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=darwin',
+                '--no_auth',
+                '--bucket', 'chromium-clang-format',
+                '-s', 'src/buildtools/mac/clang-format.sha1',
+    ],
+  },
+  {
+    'name': 'clang_format_linux',
+    'pattern': '.',
+    'condition': 'host_os == "linux"',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=linux*',
+                '--no_auth',
+                '--bucket', 'chromium-clang-format',
+                '-s', 'src/buildtools/linux64/clang-format.sha1',
+    ],
+  },
+  # Pull luci-go binaries (isolate, swarming) using checked-in hashes.
+  {
+    'name': 'luci-go_win',
+    'pattern': '.',
+    'condition': 'host_os == "win"',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=win32',
+                '--no_auth',
+                '--bucket', 'chromium-luci',
+                '-d', 'src/tools/luci-go/win64',
+    ],
+  },
+  {
+    'name': 'luci-go_mac',
+    'pattern': '.',
+    'condition': 'host_os == "mac"',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=darwin',
+                '--no_auth',
+                '--bucket', 'chromium-luci',
+                '-d', 'src/tools/luci-go/mac64',
+    ],
+  },
+  {
+    'name': 'luci-go_linux',
+    'pattern': '.',
+    'condition': 'host_os == "linux"',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=linux*',
+                '--no_auth',
+                '--bucket', 'chromium-luci',
+                '-d', 'src/tools/luci-go/linux64',
+    ],
+  },
+  # Pull the Syzygy binaries, used for optimization and instrumentation.
+  {
+    'name': 'syzygy-binaries',
+    'pattern': '.',
+    'condition': 'host_os == "win"',
+    'action': ['python',
+               'src/build/get_syzygy_binaries.py',
+               '--output-dir=src/third_party/syzygy/binaries',
+               '--revision=a8456d9248a126881dcfb8707ca7dcdae56e1ac7',
+               '--overwrite',
+    ],
+  },
+  {
+    'name': 'msan_chained_origins',
+    'pattern': '.',
+    'condition': 'checkout_instrumented_libraries',
+    'action': [ 'python',
+                'src/third_party/depot_tools/download_from_google_storage.py',
+                "--no_resume",
+                "--no_auth",
+                "--bucket", "chromium-instrumented-libraries",
+                "-s", "src/third_party/instrumented_libraries/binaries/msan-chained-origins-trusty.tgz.sha1",
+              ],
+  },
+  {
+    'name': 'msan_no_origins',
+    'pattern': '.',
+    'condition': 'checkout_instrumented_libraries',
+    'action': [ 'python',
+                'src/third_party/depot_tools/download_from_google_storage.py',
+                "--no_resume",
+                "--no_auth",
+                "--bucket", "chromium-instrumented-libraries",
+                "-s", "src/third_party/instrumented_libraries/binaries/msan-no-origins-trusty.tgz.sha1",
+              ],
+  },
+  {
+    # Download test resources, i.e. video and audio files from Google Storage.
+    'pattern': '.',
+    'action': ['download_from_google_storage',
+               '--directory',
+               '--recursive',
+               '--num_threads=10',
+               '--no_auth',
+               '--quiet',
+               '--bucket', 'chromium-webrtc-resources',
+               'src/resources'],
+  },
 ]
 
 recursedeps = [
