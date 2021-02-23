@@ -417,16 +417,15 @@ void Input::SetVideo(const std::shared_ptr<MediaFrame>& _pFrame)
                 if (nH != pAvf->height) {
                         bNeedRescale = true;
                 }
-                if (pAvf->format != VideoRescaler::PIXEL_FMT) {
+                if (pAvf->format != VideoRescaler::PIXEL_FMT && pAvf->format != AV_PIX_FMT_YUVA420P) {
                         bNeedRescale = true;
                 }
                 if (bNeedRescale) {
                         auto format = pAvf->format;
                         switch (format) {
-                        case AV_PIX_FMT_ARGB:
-                        case AV_PIX_FMT_RGBA:
-                        case AV_PIX_FMT_ABGR:
-                        case AV_PIX_FMT_BGRA:
+                        case VideoRescaler::PIXEL_FMT:
+                                break;
+                        default:
                                 format = AV_PIX_FMT_YUVA420P;
                                 break;
                         }

@@ -237,15 +237,19 @@ MediaFrame::MediaFrame(IN int _nWidth, IN int _nHeight, IN AVPixelFormat _format
         pAvFrame_->width = _nWidth;
         pAvFrame_->height = _nHeight;
         av_frame_get_buffer(pAvFrame_, 32);
-        const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(_format);
 
         // fill up the picture with pure color
-        if (_nColor >= 0 && desc) {
+        if (_nColor >= 0) {
                 uint8_t nY, nU, nV;
                 color::RgbToYuv(_nColor, nY, nU, nV);
+                int nChromaHeight = (_nHeight + 1) / 2;
+                const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(_format);
+                if (desc) {
+                        nChromaHeight = FF_CEIL_RSHIFT(_nHeight, desc->log2_chroma_h);
+                }
                 memset(pAvFrame_->data[0], nY, pAvFrame_->linesize[0] * _nHeight);
-                memset(pAvFrame_->data[1], nU, pAvFrame_->linesize[1] * FF_CEIL_RSHIFT(_nHeight, desc->log2_chroma_h));
-                memset(pAvFrame_->data[2], nV, pAvFrame_->linesize[2] * FF_CEIL_RSHIFT(_nHeight, desc->log2_chroma_h));
+                memset(pAvFrame_->data[1], nU, pAvFrame_->linesize[1] * nChromaHeight);
+                memset(pAvFrame_->data[2], nV, pAvFrame_->linesize[2] * nChromaHeight);
                 if (pAvFrame_->data[3]) {
                         memset(pAvFrame_->data[3], 0xff, pAvFrame_->linesize[3] * _nHeight);
                 }
