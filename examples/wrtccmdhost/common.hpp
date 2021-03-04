@@ -198,9 +198,16 @@ namespace muxer
         } CodecType;
 
         //
+        // RTMP Connection Status
+        //
+        namespace status {
+                const std::string rtmpConnected = "connected";
+                const std::string rtmpDisconnected = "disconnected";
+        }
+
+        //
         // option map
         //
-
         namespace options {
                 const std::string width  = "w";
                 const std::string height = "h";

@@ -54,7 +54,8 @@ const std::string mtNewUrlStream = "new-url-stream";
 const std::string mtConnAddStream = "conn-add-stream";
 const std::string mtConnStats = "conn-stats";
 const std::string mtNewRawStream = "new-raw-stream";
-const std::string mtSinkRawpkt = "on-sink-rawpkt";
+const std::string mtOnSinkRawpkt = "on-sink-rawpkt";
+const std::string mtOnSinkStatus = "on-sink-status";
 const std::string mtRawStreamSendPacket = "raw-stream-send-packet";
 const std::string mtSinkStats = "sink-stats";
 const std::string mtRequestKeyFrame = "request-key-frame";
@@ -708,7 +709,7 @@ public:
         res["pts"] = uint64_t(frame->TimeStamp());
         auto rawData = std::vector<uint8_t>(frame->rawpkt.data(), frame->rawpkt.data() + frame->rawpkt.size());
         res["rawpkt"] = json::binary(rawData);
-        h->writeMessage(mtSinkRawpkt, res);
+        h->writeMessage(mtOnSinkRawpkt, res);
     }
 
 private:
@@ -753,7 +754,7 @@ void CmdHost::handleStreamAddSink(const json& req, rtc::scoped_refptr<CmdDoneObs
         reqId = newReqId();
     }
 
-    auto sink = new muxer::RtmpSink(url, std::make_shared<XLogger>(reqId));
+    auto sink = new muxer::RtmpSink(this, sinkid, url, std::make_shared<XLogger>(reqId));
 
     int kbps = 0;
     if (jsonGetInt(req, "kbps", kbps) && kbps > 0) {
@@ -1255,6 +1256,13 @@ void CmdHost::handleReq(rtc::scoped_refptr<MsgPump::Request> req) {
     } else if (type == mtSinkSEIKey) {
         handleSinkSEIKey(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     }
+}
+
+void CmdHost::OnRtmpSinkStatus(std::string id, std::string connectStatus) {
+    json res;
+    res[kSinkId] = id;
+    res["status"] = connectStatus;
+    this->writeMessage(mtOnSinkStatus, res);
 }
 
 class MsgPumpObserver: public MsgPump::Observer {

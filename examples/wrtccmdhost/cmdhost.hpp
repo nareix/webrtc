@@ -13,7 +13,7 @@
 
 using json = nlohmann::json;
 
-class CmdHost {
+class CmdHost: public muxer::RtmpSink::Observer {
 public:
     CmdHost();
 
@@ -28,6 +28,9 @@ public:
         virtual void OnSuccess(json& res) = 0;
         virtual void OnFailure(int code, const std::string& error) = 0;
     };
+
+    // Implement for muxer::RtmpSink::Observer
+    void OnRtmpSinkStatus(std::string id, std::string connectStatus);
 
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
 

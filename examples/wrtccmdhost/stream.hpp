@@ -14,7 +14,7 @@ public:
     virtual void SetRequestKeyFrame(bool req) { need_requestKeyFrame = req;}
     virtual bool GetRequestKeyFrame() { return need_requestKeyFrame; }
     virtual void SetSEIKey(std::string& key) { seikey_ = key;}
-    virtual ~SinkObserver() {}
+    virtual ~SinkObserver() = default;
 
 private:
     std::string id_;

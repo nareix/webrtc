@@ -138,7 +138,7 @@ int AvEncoder::PresetAac(IN const std::shared_ptr<MediaFrame>& _pFrame)
 
 int AvEncoder::PresetH264(IN const std::shared_ptr<MediaFrame>& _pFrame)
 {
-        XInfo("default h.264 preset: width=%d, height=%d, gop=%d, rate=%d, min_rate=%d, max_rate=%d fps=%d", 
+        XInfo("default h.264 preset: width=%d, height=%d, gop=%d, rate=%d, min_rate=%d, max_rate=%d fps=%d",
                 _pFrame->AvFrame()->width, _pFrame->AvFrame()->height,
                 gop_, nBitrate_, nMinRate_, nMaxRate_, fps_);
 
@@ -196,7 +196,7 @@ int AvEncoder::Encode(IN std::shared_ptr<MediaFrame>& _pFrame, IN EncoderHandler
         case STREAM_VIDEO: return EncodeH264(_pFrame, _callback);
         default: XError("no preset");
         }
-        return -1;        
+        return -1;
 }
 
 int AvEncoder::EncodeAac(IN std::shared_ptr<MediaFrame>& _pFrame, IN EncoderHandlerType& _callback)
@@ -853,9 +853,9 @@ inline int ASC_SF_VALUE(int sf)
 #define ASC_CHAN_FCLR_SLR_BLR_LFE 7
 #define ASC_CHAN_RESERVED         8
 
-RtmpSender::RtmpSender(std::shared_ptr<XLogger> xl)
+RtmpSender::RtmpSender(Observer* observer, std::shared_ptr<XLogger> xl)
+        : xl_(xl), observer_(observer)
 {
-        xl_ = xl;
         bytesSent_.store(0);
 }
 
@@ -870,6 +870,11 @@ void RtmpSender::closeRtmp()
                 RTMP_Close(pRtmp_);
                 RTMP_Free(pRtmp_);
                 pRtmp_ = nullptr;
+                if (firstConnected) {
+                        if (observer_) {
+                                observer_->OnSenderStatus(muxer::status::rtmpDisconnected);
+                        }
+                }
         }
 }
 
@@ -939,6 +944,9 @@ int RtmpSender::Send(IN const std::string& url, IN const std::shared_ptr<MediaPa
                         return -1;
                 }
                 firstConnected = true;
+                if (observer_) {
+                        observer_->OnSenderStatus(muxer::status::rtmpConnected);
+                }
                 XInfo("rtmp: connection is established");
         }
 
@@ -1418,7 +1426,7 @@ int RtmpSender::SendRawPacket(IN unsigned int _nPacketType, IN int _nHeaderType,
                 break;
         case RTMP_PACKET_TYPE_VIDEO:
                 packet.m_nChannel = CHANNEL_VIDEO;
-                break;                
+                break;
         case RTMP_PACKET_TYPE_INFO:
                 packet.m_nChannel = CHANNEL_META;
                 break;
@@ -1473,16 +1481,17 @@ ssize_t RtmpSender::AccTimestamp(IN const size_t& _nNow, OUT size_t& _nBase, OUT
         return nTimestamp;
 }
 
-RtmpSink::RtmpSink(const std::string& url, std::shared_ptr<XLogger> xl): 
+RtmpSink::RtmpSink(Observer* observer, const std::string id, const std::string& url, std::shared_ptr<XLogger> xl):
+        id_(id),
         muxedQ_(100),
         audiobufQ_(100),
         videobufQ_(100),
-        resampler_(xl)
-
+        resampler_(xl),
+        observer_(observer)
 {
         url_ = url;
         bSenderExit_.store(false);
-        rtmpSender_ = std::make_unique<RtmpSender>(xl);
+        rtmpSender_ = std::make_unique<RtmpSender>(this, xl);
         xl_ = xl;
 }
 
@@ -1506,7 +1515,7 @@ void RtmpSink::OnStart() {
                                 firstPktSent = true;
                                 XInfo("senddelay %d", senddelay);
                         }
-                        XDebug("RtmpSinkSend type=%s dts=%d v=%zu a=%zu", packetStreamTypeString(send->Stream()), 
+                        XDebug("RtmpSinkSend type=%s dts=%d v=%zu a=%zu", packetStreamTypeString(send->Stream()),
                                 int(send->Dts()), videobufQ_.Size(), audiobufQ_.Size());
                         rtmpSender_->SetDontReconnect(dont_reconnect);
                         return rtmpSender_->Send(url_, send);
@@ -1532,7 +1541,7 @@ void RtmpSink::OnStart() {
                         } else {
                                 send = audiobufQ_.Pop();
                         }
-                        
+
                         return sendPacket(send);
                 };
 
@@ -1554,7 +1563,7 @@ void RtmpSink::OnStart() {
                                         return -1;
                                 }
 
-                                //XDebug("RtmpSinkEncode type=%s dts=%lld v=%zu a=%zu", packetStreamTypeString(_pPacket->Stream()), 
+                                //XDebug("RtmpSinkEncode type=%s dts=%lld v=%zu a=%zu", packetStreamTypeString(_pPacket->Stream()),
                                 //        int64_t(_pPacket->Dts()), videobufQ_.Size(), audiobufQ_.Size());
 
                                 if (!firstVGot && _pPacket->Stream() == STREAM_VIDEO) {
@@ -1581,7 +1590,7 @@ void RtmpSink::OnStart() {
                                         continue;
                                 }
 
-                                XDebug("RtmpSinkFrame type=%s dts=%d", packetStreamTypeString(pFrame->Stream()), 
+                                XDebug("RtmpSinkFrame type=%s dts=%d", packetStreamTypeString(pFrame->Stream()),
                                         int(pFrame->AvFrame()->pts));
 
                                 int nStatus = 0;
@@ -1597,7 +1606,7 @@ void RtmpSink::OnStart() {
                                 if (nStatus != 0 && !dont_reconnect) {
                                         videobufQ_.Clear();
                                         audiobufQ_.Clear();
-                                        rtmpSender_ = std::make_unique<RtmpSender>(xl_);
+                                        rtmpSender_ = std::make_unique<RtmpSender>(this, xl_);
                                         break;
                                 }
                         }
@@ -1612,7 +1621,7 @@ void RtmpSink::OnStart() {
 }
 
 void RtmpSink::OnFrame(const std::shared_ptr<muxer::MediaFrame>& pFrame) {
-        //XDebug("RtmpSinkOnFrame type=%s dts=%d", packetStreamTypeString(pFrame->Stream()), 
+        //XDebug("RtmpSinkOnFrame type=%s dts=%d", packetStreamTypeString(pFrame->Stream()),
         //        int(pFrame->AvFrame()->pts));
 
         if (pFrame->Stream() == STREAM_AUDIO) {
@@ -1628,6 +1637,12 @@ void RtmpSink::OnStop() {
         bSenderExit_.store(true);
         if (senderThread_.joinable()) {
                 senderThread_.join();
+        }
+}
+
+void RtmpSink::OnSenderStatus(std::string connectStatus) {
+        if (observer_) {
+                observer_->OnRtmpSinkStatus(id_, connectStatus);
         }
 }
 

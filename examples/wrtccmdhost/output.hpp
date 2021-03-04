@@ -131,7 +131,7 @@ namespace muxer
 
                 int WriteHeader() {
                         static uint8_t hdr[] = {
-                                'F','L','V',0x01, 
+                                'F','L','V',0x01,
                                 0,
                                 0,0,0,9,
                                 0,0,0,0,
@@ -202,11 +202,18 @@ namespace muxer
         class RtmpSender final : public AvSender
         {
         public:
-                RtmpSender(std::shared_ptr<XLogger> xl);
+                class Observer
+                {
+                public:
+		        virtual ~Observer() = default;
+                public:
+                        virtual void OnSenderStatus(std::string connectStatus) = 0;
+                };
+        public:
+                RtmpSender(Observer* observer, std::shared_ptr<XLogger> xl);
                 ~RtmpSender();
                 virtual int Send(IN const std::string& url, IN const std::shared_ptr<MediaPacket>& pPacket);
                 std::atomic<int64_t> bytesSent_;
-                
                 void SetDontReconnect(IN bool dontReconnect) {dontReconnect_ = dontReconnect;}
                 void SetSeiKey(IN const std::string& key) {seiKey_ = key;}
         private:
@@ -296,11 +303,21 @@ namespace muxer
                 // sequence header
                 std::shared_ptr<H264Nalu> pSps_ = nullptr;
                 std::shared_ptr<H264Nalu> pPps_ = nullptr;
+
+                // Observer
+                Observer* observer_ = nullptr;
         };
 
-        class RtmpSink: public SinkObserver {
+        class RtmpSink: public SinkObserver, public RtmpSender::Observer {
         public:
-                RtmpSink(const std::string& url, std::shared_ptr<XLogger> xl);
+                class Observer
+                {
+                public:
+                        virtual ~Observer() = default;
+                        virtual void OnRtmpSinkStatus(std::string id, std::string connectStatus) = 0;
+                };
+        public:
+                RtmpSink(Observer* observer, const std::string id, const std::string& url, std::shared_ptr<XLogger> xl);
 
                 void OnStart();
                 void OnFrame(const std::shared_ptr<muxer::MediaFrame>& frame);
@@ -312,6 +329,9 @@ namespace muxer
                         rtmpSender_->SetSeiKey(key);
                 }
 
+                // Implement for RtmpSender::Observer
+                void OnSenderStatus(std::string connectStatus);
+
                 int videoKbps = 1000;
                 int videoGop = 50;
                 int videoFps = 25;
@@ -321,6 +341,7 @@ namespace muxer
                 std::shared_ptr<XLogger> xl_ = nullptr;
 
         private:
+                std::string id_;
                 std::shared_ptr<RtmpSender> rtmpSender_;
                 std::string url_;
                 std::thread senderThread_;
@@ -329,6 +350,7 @@ namespace muxer
                 SharedQueue<std::shared_ptr<MediaPacket>> audiobufQ_;
                 SharedQueue<std::shared_ptr<MediaPacket>> videobufQ_;
                 AudioResampler resampler_;
+                Observer* observer_ = nullptr;
         };
 
         class Output : public OptionMap
