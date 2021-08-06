@@ -14,7 +14,7 @@ namespace muxer
                 static const AVSampleFormat SAMPLE_FMT = AV_SAMPLE_FMT_S16;
                 static const int CHANNEL_LAYOUT = AV_CH_LAYOUT_STEREO;
                 static const int DEFAULT_FRAME_SIZE = 1024;
-                static const int SAMPLE_RATE = 44100;
+                static const int SAMPLE_RATE = 48000;
         public:
                 AudioResampler(std::shared_ptr<XLogger> xl);
                 ~AudioResampler();

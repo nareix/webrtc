@@ -91,8 +91,8 @@ public:
 
 class WRTCStream: public Stream, rtc::VideoSinkInterface<webrtc::VideoFrame>, webrtc::AudioTrackSinkInterface {
 public:
-    WRTCStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream, const std::string& id, bool rawpkt) 
-        : id_(id), rawpkt(rawpkt) 
+    WRTCStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream, const std::string& id, bool rawpkt)
+        : id_(id), rawpkt(rawpkt)
     {
         webrtc::VideoTrackVector vtracks = stream->GetVideoTracks();
         webrtc::AudioTrackVector atracks = stream->GetAudioTracks();
@@ -172,7 +172,7 @@ public:
         };
 
         for (int i = 0; i < 3; i++) {
-            yuv::CopyLine(frame->AvFrame()->data[i], frame->AvFrame()->linesize[i], 
+            yuv::CopyLine(frame->AvFrame()->data[i], frame->AvFrame()->linesize[i],
                     rtcdata[i], rtclinesize[i], height[i]
             );
         }
@@ -184,7 +184,7 @@ public:
         int bits_per_sample,
         int sample_rate,
         size_t number_of_channels,
-        size_t number_of_frames) 
+        size_t number_of_frames)
     {
         auto now = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::ratio<1,1>> diff_d(now - audio_ts_);
@@ -216,14 +216,14 @@ public:
 
         memcpy(frame->AvFrame()->data[0], audio_data, bits_per_sample/8*number_of_frames*number_of_channels);
 
-        return frame;        
+        return frame;
     }
 
     void OnData(const void* audio_data,
         int bits_per_sample,
         int sample_rate,
         size_t number_of_channels,
-        size_t number_of_frames) 
+        size_t number_of_frames)
     {
         if (rawpkt) {
             if (streamOnFrameConvAAC) {
@@ -317,8 +317,8 @@ public:
 
         conn_observer_->OnAddStream(id_, stream->label(), new WRTCStream(stream, stream->label(), rtcconf.rawpkt()));
     }
-    void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver, 
-            const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>& streams) 
+    void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver,
+            const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>& streams)
     {
         InfoR("OnAddTrack streams=%lu", id_.c_str(), streams.size());
         if (streams.size() == 0) {
@@ -353,7 +353,7 @@ std::string WRTCConn::ID() {
 }
 
 WRTCConn::WRTCConn(
-    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory, 
+    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory,
     webrtc::PeerConnectionInterface::RTCConfiguration rtcconf,
     WRTCConn::ConnObserver* conn_observer,
     rtc::Thread* signal_thread
@@ -440,14 +440,14 @@ void WRTCConn::SetLocalDesc(
 }
 
 void WRTCConn::CreateOffer(
-    webrtc::PeerConnectionInterface::RTCOfferAnswerOptions offeropt, 
+    webrtc::PeerConnectionInterface::RTCOfferAnswerOptions offeropt,
     rtc::scoped_refptr<WRTCConn::CreateDescObserver> observer
 ) {
     pc_->CreateOffer(new rtc::RefCountedObject<CreateOfferObserver>(pc_, observer), offeropt);
 }
 
 void WRTCConn::CreateOfferSetLocalDesc(
-    webrtc::PeerConnectionInterface::RTCOfferAnswerOptions offeropt, 
+    webrtc::PeerConnectionInterface::RTCOfferAnswerOptions offeropt,
     rtc::scoped_refptr<WRTCConn::CreateDescObserver> observer
 ) {
     pc_->CreateOffer(new rtc::RefCountedObject<CreateOfferSetDescObserver>(pc_, observer), offeropt);
@@ -470,12 +470,12 @@ public:
     void OnSuccess(webrtc::SessionDescriptionInterface* desc) {
         std::string descstr;
         desc->ToString(&descstr);
-        pc_->SetLocalDescription(new rtc::RefCountedObject<SetLocalDescObserver>(observer_, descstr), desc);        
+        pc_->SetLocalDescription(new rtc::RefCountedObject<SetLocalDescObserver>(observer_, descstr), desc);
     }
 
     void OnFailure(const std::string& error) {
         observer_->OnFailure(error);
-    }   
+    }
 
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> pc_;
     rtc::scoped_refptr<WRTCConn::CreateDescObserver> observer_;
@@ -505,7 +505,7 @@ public:
 };
 
 void WRTCConn::SetRemoteDescCreateAnswer(
-    webrtc::PeerConnectionInterface::RTCOfferAnswerOptions answeropt, 
+    webrtc::PeerConnectionInterface::RTCOfferAnswerOptions answeropt,
     webrtc::SessionDescriptionInterface* desc,
     rtc::scoped_refptr<WRTCConn::CreateDescObserver> observer
 ) {
@@ -545,7 +545,7 @@ public:
                       int bits_per_sample,
                       int sample_rate,
                       size_t number_of_channels,
-                      size_t number_of_frames) 
+                      size_t number_of_frames)
     {
         std::lock_guard<std::mutex> lock(sinks_lock_);
 
@@ -608,7 +608,7 @@ public:
             vsrc_->OnFrame(vframe);
         } else if (frame->Stream() == muxer::STREAM_AUDIO) {
             Verbose("AVBroadcasterOnFrameAudio");
-            
+
             if (dumpRawpkt) {
                 //rtc::ByteBufferWriter bw(rtc::ByteBuffer::ByteOrder::ORDER_NETWORK);
                 //LOG(LS_VERBOSE) << "DumpRawpkt " << rtc::hex_encode(bw.Data(), bw.Length());
@@ -644,7 +644,7 @@ public:
 
             auto resampleCb = [&](const std::shared_ptr<muxer::MediaFrame>& out) {
                 RawpktAudio audio(out->AvFrame());
-                Verbose("AVBroadcasterOnFrameAudioRawpktDecoded %d %d %d %d", 
+                Verbose("AVBroadcasterOnFrameAudioRawpktDecoded %d %d %d %d",
                     audio.samplebits, audio.samplerate, audio.channels, audio.samplenr);
                 asrc_->OnData(audio.audiodata, audio.samplebits, audio.samplerate, audio.channels, audio.samplenr);
             };
@@ -662,7 +662,7 @@ public:
                 }
                 break;
             case 2: // raw audio
-                Verbose("AVBroadcasterOnFrameAudioRawpkt %d %d %d %d", 
+                Verbose("AVBroadcasterOnFrameAudioRawpkt %d %d %d %d",
                     audio.samplebits, audio.samplerate, audio.channels, audio.samplenr);
                 asrc_->OnData(audio.audiodata, audio.samplebits, audio.samplerate, audio.channels, audio.samplenr);
                 break;
