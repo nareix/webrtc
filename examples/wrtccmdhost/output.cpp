@@ -138,9 +138,12 @@ int AvEncoder::PresetAac(IN const std::shared_ptr<MediaFrame>& _pFrame)
 
 int AvEncoder::PresetH264(IN const std::shared_ptr<MediaFrame>& _pFrame)
 {
-        XInfo("default h.264 preset: width=%d, height=%d, gop=%d, rate=%d, min_rate=%d, max_rate=%d fps=%d",
+        XInfo("default h264 preset: "
+              "width=%d height=%d gop=%d rate=%d min_rate=%d max_rate=%d "
+              "fps=%d preset=%s",
                 _pFrame->AvFrame()->width, _pFrame->AvFrame()->height,
-                gop_, nBitrate_, nMinRate_, nMaxRate_, fps_);
+                gop_, nBitrate_, nMinRate_, nMaxRate_,
+                fps_, videoPreset_.c_str());
 
         pAvEncoderContext_->pix_fmt = AV_PIX_FMT_YUV420P;
 
@@ -179,7 +182,7 @@ int AvEncoder::PresetH264(IN const std::shared_ptr<MediaFrame>& _pFrame)
         //pAvEncoderContext_->thread_type = FF_THREAD_FRAME;
 
         // set params
-        av_opt_set(pAvEncoderContext_->priv_data, "preset", "ultrafast", 0);
+        av_opt_set(pAvEncoderContext_->priv_data, "preset", videoPreset_.c_str(), 0);
         av_opt_set(pAvEncoderContext_->priv_data, "tune", "zerolatency", 0);
 
         return 0;
@@ -1551,6 +1554,7 @@ void RtmpSink::OnStart() {
 
                         vEncoder->nMaxRate_ = videoMaxRate;
                         vEncoder->nMinRate_ = videoMinRate;
+                        vEncoder->videoPreset_ = videoPreset;
                         vEncoder->gop_ = videoGop;
                         vEncoder->fps_ = videoFps;
                         vEncoder->Bitrate(videoKbps);

@@ -19,6 +19,7 @@ namespace muxer
                 int gop_ = 50;
                 int nMinRate_ = 0;
                 int nMaxRate_ = 0;
+                std::string videoPreset_;
                 int fps_ = 25;
         private:
                 void Deinit();
@@ -337,6 +338,7 @@ namespace muxer
                 int videoFps = 25;
                 int videoMinRate = 0;
                 int videoMaxRate = 0;
+                std::string videoPreset = "ultrafast";
                 bool dont_reconnect = false;
                 std::shared_ptr<XLogger> xl_ = nullptr;
 

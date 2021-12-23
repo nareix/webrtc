@@ -1,7 +1,11 @@
 #include "cmdhost.hpp"
 #include "stream.hpp"
 #include "output.hpp"
+#include <chrono>
 #include <stdlib.h>
+#include <iostream>
+#include <random>
+#include <fstream>
 
 #include "rtc_base/base64.h"
 
@@ -717,6 +721,57 @@ private:
     std::string sinkid;
 };
 
+static void checkGray(const std::string &url, const std::string &reqId, muxer::RtmpSink *sink) {
+    std::string prefix = "rtmp://";
+    if (url.compare(0, prefix.size(), prefix)) {
+        return;
+    }
+
+    int l = reqId.find_first_of(".");
+    int r = reqId.find_first_of(":");
+    if (l == -1 || r == -1) {
+        return;
+    }
+
+    std::string appid = reqId.substr(l + 1, r - l - 1);
+
+    std::ifstream ifs("wrtccmdhost_config.json");
+    if (ifs.fail()) {
+        return;
+    }
+
+    json config = json::parse(ifs, nullptr, false);
+
+    auto appConfig = config.find("app_config");
+    if (appConfig == config.end() || !appConfig->is_object()) {
+        return;
+    }
+
+    auto entry = appConfig->find(appid);
+    if (entry == appConfig->end() || !entry->is_object()) {
+        return;
+    }
+
+    auto grayVideoPreset = entry->find("gray_video_preset");
+    if (grayVideoPreset != entry->end() && grayVideoPreset->is_object()) {
+        auto value = grayVideoPreset->find("value");
+        auto ratio = grayVideoPreset->find("ratio");
+        if (value != grayVideoPreset->end() && value->is_string() &&
+            ratio != grayVideoPreset->end() && ratio->is_number_float() ) {
+            auto valueS = value->get<std::string>();
+            auto ratioF = ratio->get<double>();
+
+            static std::mt19937_64 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+            std::uniform_real_distribution<double> realdis(0, 1);
+            double rn = realdis(rng);
+
+            if (rn < ratioF) {
+                sink->videoPreset = valueS;
+            }
+        }
+    }
+}
+
 void CmdHost::handleStreamAddSink(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
     std::string id;
     if (!jsonGetString(req, kId, id)) {
@@ -750,7 +805,7 @@ void CmdHost::handleStreamAddSink(const json& req, rtc::scoped_refptr<CmdDoneObs
     }
 
     std::string reqId;
-    if (!jsonGetString(req, "kReqId", reqId) || reqId.empty()) {
+    if (!jsonGetString(req, "reqId", reqId) || reqId.empty()) {
         reqId = newReqId();
     }
 
@@ -780,6 +835,8 @@ void CmdHost::handleStreamAddSink(const json& req, rtc::scoped_refptr<CmdDoneObs
     if (jsonGetInt(req, "fps", fps) && fps > 0) {
         sink->videoFps = fps;
     }
+
+    checkGray(url, reqId, sink);
 
     stream->AddSink(sinkid, sink);
 
