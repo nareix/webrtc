@@ -492,10 +492,6 @@ void CmdHost::handleNewLibmuxer(const json& req, rtc::scoped_refptr<CmdHost::Cmd
     int w = 0, h = 0;
     (void)jsonGetInt(req, "w", w);
     (void)jsonGetInt(req, "h", h);
-    if (w == 0 || h == 0) {
-        observer->OnFailure(errInvalidParams, "invalid w or h");
-        return;
-    }
 
     std::string reqId;
     if (!jsonGetString(req, kReqId, reqId) || reqId.empty()) {
@@ -512,6 +508,11 @@ void CmdHost::handleNewLibmuxer(const json& req, rtc::scoped_refptr<CmdHost::Cmd
     auto audioOnlyIt = req.find("audioOnly");
     if (audioOnlyIt != req.end() && audioOnlyIt->is_boolean()) {
         m->audioOnly_.store(audioOnlyIt->get<bool>());
+    }
+
+    if (!m->audioOnly_.load() && (w == 0 || h == 0)) {
+        observer->OnFailure(errInvalidParams, "invalid w or h");
+        return;
     }
 
     int fps = 0;
