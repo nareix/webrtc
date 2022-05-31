@@ -34,7 +34,9 @@ SinkObserver *Stream::FindSink(const std::string& id) {
 
 void Stream::SendFrame(const std::shared_ptr<muxer::MediaFrame>& frame) {
     std::lock_guard<std::mutex> lock(sinks_map_lock_);
-
+    if (frame->Stream() == muxer::STREAM_VIDEO){
+        lastVideo_ = frame;
+    }
     for (auto it = sinks_map_.begin(); it != sinks_map_.end(); it++) {
         auto sink = it->second;
         sink->OnFrame(frame);

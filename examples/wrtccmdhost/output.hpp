@@ -361,12 +361,12 @@ namespace muxer
                 Output(IN const std::string& name);
                 ~Output();
                 std::string Name();
-                void Start(IN FrameSender* stream);
+                void Start(IN Stream* stream);
                 void Stop();
                 bool Push(IN std::shared_ptr<MediaFrame>& pFrame);
 
         private:
-                FrameSender* stream_;
+                Stream* stream_;
                 std::string name_;
                 std::thread sender_;
                 std::atomic<bool> bSenderExit_;

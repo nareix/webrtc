@@ -49,6 +49,7 @@ const std::string mtOnConnAddStream = "on-conn-add-stream";
 const std::string mtOnConnRemoveStream = "on-conn-remove-stream";
 const std::string mtNewLibMuxer = "new-libmuxer";
 const std::string mtLibmuxerAddInput = "libmuxer-add-input";
+const std::string mtLibmuxerReplaceAllInputs = "libmuxer-replace-all-inputs";
 const std::string mtLibmuxerSetInputsOpt = "libmuxer-set-inputs-opt";
 const std::string mtLibmuxerRemoveInput = "libmuxer-remove-input";
 const std::string mtStreamAddSink = "stream-add-sink";
@@ -245,7 +246,9 @@ Stream* CmdHost::checkStream(const std::string& id, rtc::scoped_refptr<CmdDoneOb
         }
     }
     if (stream == nullptr) {
-        observer->OnFailure(errStreamNotFound, errStreamNotFoundString);
+        if (observer != nullptr) {
+            observer->OnFailure(errStreamNotFound, errStreamNotFoundString);
+        }
         return nullptr;
     }
 
@@ -430,6 +433,7 @@ void CmdHost::handleAddIceCandidate(const json& req, rtc::scoped_refptr<CmdHost:
         return;
     }
 
+
     std::string sdpMlineIndex;
     if (!jsonGetString(c, kSdpMLineIndex, sdpMlineIndex)) {
         observer->OnFailure(errInvalidParams, "parse kSdpMLineIndex failed");
@@ -585,19 +589,18 @@ static void libmuxerSetInputOpt(const std::shared_ptr<muxer::Input>& lin, const 
     }
 }
 
-void CmdHost::handleLibmuxerAddInput(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
-    auto m = checkLibmuxer(req, observer);
-    if (m == nullptr) {
-        return;
-    }
-
-    Stream *stream = nullptr;
+bool CmdHost::addInput(muxer::AvMuxer *m, const json& req, json &res,
+    std::shared_ptr<muxer::Input> &input, Stream *&stream,
+    rtc::scoped_refptr<CmdDoneObserver> observer)
+{
+    stream = nullptr;
     std::string streamId;
+
     if (jsonGetString(req, kStreamId, streamId)) {
         stream = checkStream(streamId, observer);
     }
     if (stream == nullptr) {
-        return;
+        return false;
     }
 
     std::string key = "";
@@ -621,15 +624,84 @@ void CmdHost::handleLibmuxerAddInput(const json& req, rtc::scoped_refptr<CmdDone
         }
     }
 
-    m->AddInput(streamId, stream);
-
-    if (optIt != req.end() && optIt->is_object()) {
-        libmuxerSetInputOpt(m->FindInput(streamId), *optIt);
-    }
-
-    json res;
     res[kId] = streamId;
     res[kSEIKey] = key;
+
+    input = std::make_shared<muxer::Input>(std::make_shared<XLogger>(streamId), streamId);
+    if (optIt != req.end() && optIt->is_object()) {
+        libmuxerSetInputOpt(input, *optIt);
+    }
+
+    if (stream->lastVideo_ != nullptr){
+      input->SetVideo(stream->lastVideo_);
+    }
+
+    return true;
+}
+
+void CmdHost::handleLibmuxerReplaceAllInputs(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto m = checkLibmuxer(req, observer);
+    if (m == nullptr) {
+        return;
+    }
+
+    auto opts = req.find("opts");
+    if (opts == req.end() || !opts->is_array()) {
+        observer->OnFailure(errInvalidParams, "opts");
+        return;
+    }
+
+    json resArr = json::array();
+    std::vector<std::shared_ptr<muxer::Input>> inputs;
+    std::vector<Stream*> streams;
+
+    for (const auto& ireq: *opts) {
+        json ires;
+        std::shared_ptr<muxer::Input> input;
+        Stream *stream;
+
+        if (!addInput(m, ireq, ires, input, stream, observer)) {
+            return;
+        }
+
+        inputs.push_back({std::move(input)});
+        streams.push_back(stream);
+
+        resArr.push_back(ires);
+    }
+
+
+
+    for (size_t i = 0; i < inputs.size(); i++) {
+        inputs[i]->Start(streams[i]);
+    }
+    // sleep 500ms make sure new input have data.
+     usleep(500*1000);
+
+    m->ReplaceAllInputs(inputs);
+
+    json res;
+    res["res"] = resArr;
+    observer->OnSuccess(res);
+}
+
+void CmdHost::handleLibmuxerAddInput(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer) {
+    auto m = checkLibmuxer(req, observer);
+    if (m == nullptr) {
+        return;
+    }
+
+    std::shared_ptr<muxer::Input> input;
+    Stream *stream;
+
+    json res;
+    if (!addInput(m, req, res, input, stream, observer)) {
+        return;
+    }
+
+    input->Start(stream);
+    m->AddInput(input);
+
     observer->OnSuccess(res);
 }
 
@@ -1283,6 +1355,8 @@ void CmdHost::handleReq(rtc::scoped_refptr<MsgPump::Request> req) {
         handleAddIceCandidate(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtNewLibMuxer) {
         handleNewLibmuxer(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
+    } else if (type == mtLibmuxerReplaceAllInputs) {
+        handleLibmuxerReplaceAllInputs(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtLibmuxerAddInput) {
         handleLibmuxerAddInput(req->body, new rtc::RefCountedObject<CmdDoneWriteResObserver>(req));
     } else if (type == mtLibmuxerSetInputsOpt) {

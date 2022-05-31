@@ -66,7 +66,7 @@ public:
 
     void GetStats(webrtc::RTCStatsCollectorCallback* cb);
 
-    bool AddStream(SinkAddRemover* stream, std::vector<rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>> &tracks);
+    bool AddStream(Stream* stream, std::vector<rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>> &tracks);
 
 private:
     std::string id_;

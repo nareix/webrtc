@@ -19,7 +19,7 @@ namespace muxer
 
                 int nCanvasW_ = 0, nCanvasH_ = 0;
                 int nBackground_ = 0x000000; // black
-				
+
                 bool _bEnterMuxMode = false;
                 int _nFrameCount = 0, _nFrameCountThreshold = 50;
         };
@@ -40,17 +40,20 @@ namespace muxer
                 AvMuxer(std::shared_ptr<XLogger> xl, IN int nWidth, IN int nHeight);
                 ~AvMuxer();
 
-                int AddOutput(IN const std::string& name, IN FrameSender* stream);
+                int AddOutput(IN const std::string& name, IN Stream* stream);
                 int ModOutputOption(IN const std::string& name, IN const std::string& key, IN const std::string& val = "");
                 int ModOutputOption(IN const std::string& name, IN const std::string& key, IN int nVal);
                 int DelOutputOption(IN const std::string& name, IN const std::string& key);
                 int RemoveOutput(IN const std::string& name);
 
-                int AddInput(IN const std::string& name, IN SinkAddRemover *stream);
+                int AddInput(IN const std::string& name, IN Stream *stream);
+                int AddInput(const std::shared_ptr<Input> &input);
                 int ModInputOption(IN const std::string& name, IN const std::string& key, IN const std::string& val = "");
                 int ModInputOption(IN const std::string& name, IN const std::string& key, IN int nVal);
                 int DelInputOption(IN const std::string& name, IN const std::string& key);
                 int RemoveInput(IN const std::string& name);
+
+                void ReplaceAllInputs(const std::vector<std::shared_ptr<Input>> &inputs);
 
                 int Start();
                 int PrintInputs();

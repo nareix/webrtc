@@ -22,20 +22,7 @@ private:
     bool need_requestKeyFrame;
 };
 
-class SinkAddRemover {
-public:
-    virtual bool AddSink(const std::string& id, SinkObserver *sink) = 0;
-    virtual bool RemoveSink(const std::string& id) = 0;
-    virtual ~SinkAddRemover() {}
-};
-
-class FrameSender {
-public:
-    virtual void SendFrame(const std::shared_ptr<muxer::MediaFrame>& frame) = 0;
-    virtual ~FrameSender() {}
-};
-
-class Stream: public SinkAddRemover, public FrameSender {
+class Stream {
 public:
     Stream() : sinks_map_(), sinks_map_lock_() {}
     bool AddSink(const std::string& id, SinkObserver *sink);
@@ -43,6 +30,7 @@ public:
     SinkObserver *FindSink(const std::string& id);
     void SendFrame(const std::shared_ptr<muxer::MediaFrame>& frame);
     std::map<std::string, SinkObserver*>& GetSinks() {return sinks_map_;}
+    std::shared_ptr<muxer::MediaFrame> lastVideo_ = nullptr;
 
 private:
     std::map<std::string, SinkObserver*> sinks_map_;

@@ -53,6 +53,10 @@ public:
     Stream *checkStream(const std::string& id, rtc::scoped_refptr<CmdDoneObserver> observer);
     muxer::AvMuxer *checkLibmuxer(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
 
+    bool addInput(muxer::AvMuxer *m, const json& req, json &res,
+        std::shared_ptr<muxer::Input> &input, Stream *&stream,
+        rtc::scoped_refptr<CmdDoneObserver> observer);
+
     void handleCreateOffer(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleCreateOfferSetLocalDesc(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleSetRemoteDesc(const json& req, rtc::scoped_refptr<CmdHost::CmdDoneObserver> observer);
@@ -62,6 +66,7 @@ public:
     void handleNewConn(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleNewLibmuxer(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleLibmuxerAddInput(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
+    void handleLibmuxerReplaceAllInputs(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleLibmuxerRemoveInput(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleLibmuxerSetInputsOpt(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);
     void handleStreamAddSink(const json& req, rtc::scoped_refptr<CmdDoneObserver> observer);

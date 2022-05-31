@@ -688,7 +688,7 @@ public:
     bool dumpRawpkt = false;
 };
 
-bool WRTCConn::AddStream(SinkAddRemover* stream, std::vector<rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>> &tracks) {
+bool WRTCConn::AddStream(Stream* stream, std::vector<rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>> &tracks) {
     auto media_stream = pc_factory_->CreateLocalMediaStream(newReqId());
     auto asrc = new rtc::RefCountedObject<AudioBroadcaster>();
     rtc::VideoBroadcaster *vsrc = new rtc::VideoBroadcaster();

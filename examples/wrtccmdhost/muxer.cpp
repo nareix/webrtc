@@ -109,7 +109,7 @@ AvMuxer::~AvMuxer()
 {
 }
 
-int AvMuxer::AddOutput(IN const std::string& _name, IN FrameSender* stream)
+int AvMuxer::AddOutput(IN const std::string& _name, IN Stream* stream)
 {
         auto r = std::make_shared<Output>(_name);
         r->Start(stream);
@@ -174,11 +174,16 @@ int AvMuxer::PrintInputs()
         return 0;
 }
 
-int AvMuxer::AddInput(IN const std::string& _name, IN SinkAddRemover *stream)
+int AvMuxer::AddInput(IN const std::string& _name, IN Stream *stream)
 {
         auto r = std::make_shared<Input>(std::make_shared<XLogger>(_name), _name);
         r->Start(stream);
         inputs_.Push(std::move(r));
+        return 0;
+}
+
+int AvMuxer::AddInput(const std::shared_ptr<Input> &input) {
+        inputs_.Push(std::move(input));
         return 0;
 }
 
@@ -232,6 +237,15 @@ int AvMuxer::RemoveInput(IN const std::string& _name)
         return 0;
 }
 
+void AvMuxer::ReplaceAllInputs(const std::vector<std::shared_ptr<Input>> &inputs) {
+        inputs_.CriticalSection([&](std::deque<std::shared_ptr<Input>>& queue){
+                queue.clear();
+                for (auto &i: inputs) {
+                        queue.push_front(std::move(i));
+                }
+        });
+}
+
 std::shared_ptr<Input> AvMuxer::FindInput(IN const std::string& _name)
 {
         std::shared_ptr<Input> p = nullptr;
@@ -278,7 +292,7 @@ int AvMuxer::Start()
                                         int hidden = 1;
                                         _pInput->GetOption(options::hidden, hidden);
                                         if (!hidden && _pInput->GetVideo(pFrame, nQlen)) {
-                                                videoFrames.push_back(pFrame);
+                                               videoFrames.push_back(pFrame);
                                         }
                                 });
 

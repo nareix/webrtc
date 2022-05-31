@@ -260,7 +260,7 @@ private:
         Input *input_;
 };
 
-void Input::Start(IN SinkAddRemover *stream) {
+void Input::Start(IN Stream *stream) {
         stream_ = stream;
 
         sink_ = new InputSinkObserver(this);
@@ -275,7 +275,9 @@ void Input::Start(IN SinkAddRemover *stream) {
 // start thread => receiver loop => decoder loop
 void Input::Start(IN const std::string& _url)
 {
-        auto recv = [this, _url] {
+        int errRetry = 0;
+
+        auto recv = [this, _url, &errRetry] {
                 double tmstart = 0;
                 double ptsdifftot = 0;
                 double lastpts = 0;
@@ -367,7 +369,14 @@ void Input::Start(IN const std::string& _url)
                         };
 
                         // start receiver loop
-                        avReceiver->Receive(_url, receiverHook);
+                        if (avReceiver->Receive(_url, receiverHook) < 0) {
+                                errRetry++;
+                        }
+                        if (errRetry == 3) {
+                                return;
+                        }
+
+                        sleep(3);
                 }
         };
 

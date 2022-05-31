@@ -1672,7 +1672,7 @@ std::string Output::Name()
         return name_;
 }
 
-void Output::Start(IN FrameSender* stream) {
+void Output::Start(IN Stream* stream) {
         stream_ = stream;
         onFrame_ = [&](IN std::shared_ptr<MediaFrame>& pFrame) {
                 stream_->SendFrame(pFrame);

@@ -49,7 +49,7 @@ namespace muxer
                 ~Input();
                 std::string Name();
 
-                void Start(IN SinkAddRemover *stream);
+                void Start(IN Stream *stream);
                 void Start(IN const std::string& url);
                 void Stop();
 
@@ -71,6 +71,7 @@ namespace muxer
                 AudioResampler resampler_;
                 SharedQueue<std::shared_ptr<MediaFrame>> audioQ_;
                 SharedQueue<std::shared_ptr<MediaFrame>> videoQ_;
+                std::shared_ptr<MediaFrame> pLastVideo_ = nullptr;
 
         private:
                 static const size_t AUDIO_Q_LEN = 100;
@@ -78,11 +79,9 @@ namespace muxer
                 std::string name_;
                 std::thread receiver_;
                 std::atomic<bool> bReceiverExit_;
-                std::shared_ptr<MediaFrame> pLastVideo_ = nullptr;
-
                 std::shared_ptr<VideoRescaler> pRescaler_ = nullptr;
 
-                SinkAddRemover *stream_;
+                Stream *stream_;
                 SinkObserver *sink_;
                 std::string sink_id_;
                 std::function<void ()> onStop_;

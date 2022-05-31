@@ -97,7 +97,7 @@ int AudioResampler::Resample(IN const std::shared_ptr<MediaFrame>& _pFrame, std:
                 pNewFrame->AvFrame()->sample_rate = AudioResampler::SAMPLE_RATE;
                 av_frame_get_buffer(pNewFrame->AvFrame(), 0);
                 std::copy(&sampleBuffer_[0], &sampleBuffer_[nSizeEachFrame], pNewFrame->AvFrame()->data[0]);
-        
+
                 DebugPCM("/tmp/rtc.re2.s16", &sampleBuffer_[0], nSizeEachFrame);
 
                 // move rest samples to beginning of the buffer
@@ -329,7 +329,9 @@ int VideoRescaler::Init(IN const std::shared_ptr<MediaFrame>& _pFrame)
                 nZoomY_ = 0;
                 break;
         }
-
+        XInfo("input color_space=%s, need color_space=%s, from %d*%d to resize_to=%dx%d, stretch=%d initiate rescaling",
+             av_get_pix_fmt_name((AVPixelFormat)pAvf->format), av_get_pix_fmt_name((AVPixelFormat)format_),pAvf->width, pAvf->height,
+             nW_, nH_, bStretchMode_);
         // configure rescaling context
         pSws_ = sws_getContext(pAvf->width, pAvf->height,
                                static_cast<AVPixelFormat>(pAvf->format), nZoomW_, nZoomH_, format_,
@@ -361,9 +363,9 @@ int VideoRescaler::Rescale(IN const std::shared_ptr<MediaFrame>& _pInFrame, OUT 
         // the incoming frame resolution changed, reinit the sws
         if (_pInFrame->AvFrame()->width != nOrigW_ || _pInFrame->AvFrame()->height != nOrigH_ ||
             _pInFrame->AvFrame()->format != origFormat_) {
-                XInfo("rescaler: video parameters have changed, w=%d, h=%d, fmt=%s -> w=%d, h=%d, fmt=%s", 
-                        nOrigW_, nOrigH_, av_get_pix_fmt_name((AVPixelFormat)origFormat_), 
-                        _pInFrame->AvFrame()->width, _pInFrame->AvFrame()->height, 
+                XInfo("rescaler: video parameters have changed, w=%d, h=%d, fmt=%s -> w=%d, h=%d, fmt=%s",
+                        nOrigW_, nOrigH_, av_get_pix_fmt_name((AVPixelFormat)origFormat_),
+                        _pInFrame->AvFrame()->width, _pInFrame->AvFrame()->height,
                         av_get_pix_fmt_name((AVPixelFormat)_pInFrame->AvFrame()->format)
                 );
                 if (Reset(nW_, nH_, format_, bStretchMode_) != 0) {
@@ -563,13 +565,13 @@ void merge::Overlay(IN const std::shared_ptr<MediaFrame>& _pFrom, OUT std::share
         for (int32_t j = 0; j < nTargetUVY; ++j) {
                 uint8_t *alpha = pFrom->data[3]+pFrom->linesize[3]*j*2;
                 overlayRowOp(
-                        pTo->data[1] + nToUVOffset + pTo->linesize[1] * j, 
-                        pFrom->data[1] + nFromUVOffset + pFrom->linesize[1] * j, 
+                        pTo->data[1] + nToUVOffset + pTo->linesize[1] * j,
+                        pFrom->data[1] + nFromUVOffset + pFrom->linesize[1] * j,
                         alpha, nTargetUVX, mode, 2
                 );
                 overlayRowOp(
-                        pTo->data[2] + nToUVOffset + pTo->linesize[2] * j, 
-                        pFrom->data[2] + nFromUVOffset + pFrom->linesize[2] * j, 
+                        pTo->data[2] + nToUVOffset + pTo->linesize[2] * j,
+                        pFrom->data[2] + nFromUVOffset + pFrom->linesize[2] * j,
                         alpha, nTargetUVX, mode, 2
                 );
         }
