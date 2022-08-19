@@ -632,8 +632,9 @@ bool CmdHost::addInput(muxer::AvMuxer *m, const json& req, json &res,
         libmuxerSetInputOpt(input, *optIt);
     }
 
-    if (stream->lastVideo_ != nullptr){
-      input->SetVideo(stream->lastVideo_);
+    std::shared_ptr<muxer::MediaFrame> frame = stream->lastVideo_;
+    if (frame != nullptr){
+      input->SetVideo(frame);
     }
 
     return true;
