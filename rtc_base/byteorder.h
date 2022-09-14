@@ -22,10 +22,17 @@
 
 #define htobe16(v) OSSwapHostToBigInt16(v)
 #define htobe32(v) OSSwapHostToBigInt32(v)
+
+#ifndef htobe64
 #define htobe64(v) OSSwapHostToBigInt64(v)
+#endif
+
 #define be16toh(v) OSSwapBigToHostInt16(v)
 #define be32toh(v) OSSwapBigToHostInt32(v)
+
+#ifndef be64toh
 #define be64toh(v) OSSwapBigToHostInt64(v)
+#endif
 
 #define htole16(v) OSSwapHostToLittleInt16(v)
 #define htole32(v) OSSwapHostToLittleInt32(v)

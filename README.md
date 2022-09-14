@@ -23,3 +23,35 @@ started developing with the native code.
  * Continuous build: http://build.chromium.org/p/client.webrtc
  * [Coding style guide](style-guide.md)
  * [Code of conduct](CODE_OF_CONDUCT.md)
+
+# 编译
+
+按 https://webrtc.org/native-code/development/prerequisite-sw/ 的指引安装编译工具
+
+新建 `.gclient` 文件，内容如下：
+
+```
+solutions = [
+  {
+    "url": "git@github.com:qbox/webrtc.git",
+    "managed": False,
+    "name": "src",
+    "deps_file": "DEPS",
+    "custom_deps": {},
+  },
+]
+```
+
+获取源码：
+
+```
+gclient sync
+```
+
+编译 wrtccmdhost：
+
+```
+cd src
+gn gen out/Default --args="is_debug=false"
+ninja -C out/Default wrtccmdhost
+```

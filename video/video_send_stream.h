@@ -46,7 +46,7 @@ class VideoSendStreamImpl;
 // Internally, it delegates all public methods to VideoSendStreamImpl and / or
 // VideoStreamEncoder. VideoSendStreamInternal is created and deleted on
 // |worker_queue|.
-class VideoSendStream : public webrtc::VideoSendStream {
+class VideoSendStream : public webrtc::VideoSendStream, public rtc::VideoSinkInterface<webrtc::VideoFrame> {
  public:
   VideoSendStream(
       int num_cpu_cores,
@@ -70,6 +70,8 @@ class VideoSendStream : public webrtc::VideoSendStream {
   // webrtc::VideoSendStream implementation.
   void Start() override;
   void Stop() override;
+
+  void OnFrame(const webrtc::VideoFrame& frame) override;
 
   void SetSource(rtc::VideoSourceInterface<webrtc::VideoFrame>* source,
                  const DegradationPreference& degradation_preference) override;

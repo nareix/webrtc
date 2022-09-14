@@ -60,6 +60,7 @@ constexpr int64_t kMinRetransmissionWindowMs = 30;
 }  // namespace
 
 const int kTelephoneEventAttenuationdB = 10;
+const int kQNSignLength = 6;
 
 class RtcEventLogProxy final : public webrtc::RtcEventLog {
  public:
@@ -1001,8 +1002,28 @@ void Channel::OnRtpPacket(const RtpPacketReceived& packet) {
         header, packet.size(), IsPacketRetransmitted(header, in_order));
     rtp_payload_registry_->SetIncomingPayloadType(header);
 
-    ReceivePacket(packet.data(), packet.size(), header);
+    uint32_t length = GetExtraDataLength(packet.data(), packet.size());
+    ReceivePacket(packet.data(), packet.size() - length, header);
   }
+}
+
+uint32_t Channel::GetExtraDataLength(const uint8_t* packet, size_t packet_length) {
+  // suffix
+  // 06 05 04 03 02 01
+  // Q  N  < length >
+  if (packet_length > kQNSignLength) {
+    std::string str((char *)packet+packet_length-kQNSignLength, 2);
+    transform(str.begin(), str.end(), str.begin(), ::toupper);
+    if (str == "QN") {
+      uint32_t extra_size = rtc::GetBE32(&packet[packet_length-4]);
+
+      if (extra_size+kQNSignLength < packet_length) {
+        return extra_size+kQNSignLength;
+      }
+    }
+  }
+
+  return 0;
 }
 
 bool Channel::ReceivePacket(const uint8_t* packet,
@@ -1398,6 +1419,7 @@ void Channel::ProcessAndEncodeAudio(const int16_t* audio_data,
   }
   RemixAndResample(audio_data, number_of_frames, number_of_channels,
                    sample_rate, &input_resampler_, audio_frame.get());
+  
   encoder_queue_->PostTask(std::unique_ptr<rtc::QueuedTask>(
       new ProcessAndEncodeAudioTask(std::move(audio_frame), this)));
 }

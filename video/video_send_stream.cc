@@ -33,10 +33,14 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/trace_event.h"
 #include "rtc_base/weak_ptr.h"
+#include "rtc_base/stringencode.h"
+#include "rtc_base/byteorder.h"
+#include "rtc_base/bytebuffer.h"
 #include "system_wrappers/include/field_trial.h"
 #include "video/call_stats.h"
 #include "video/payload_router.h"
 #include "call/video_send_stream.h"
+#include "rtc_base/timeutils.h"
 
 namespace webrtc {
 
@@ -272,6 +276,7 @@ class VideoSendStreamImpl : public webrtc::BitrateAllocatorObserver,
   void OnEncoderConfigurationChanged(std::vector<VideoStream> streams,
                                      int min_transmit_bitrate_bps) override;
 
+public:
   // Implements EncodedImageCallback. The implementation routes encoded frames
   // to the |payload_router_| and |config.pre_encode_callback| if set.
   // Called on an arbitrary encoder callback thread.
@@ -280,6 +285,7 @@ class VideoSendStreamImpl : public webrtc::BitrateAllocatorObserver,
       const CodecSpecificInfo* codec_specific_info,
       const RTPFragmentationHeader* fragmentation) override;
 
+private:
   // Implements VideoBitrateAllocationObserver.
   void OnBitrateAllocationUpdated(const BitrateAllocation& allocation) override;
 
@@ -584,11 +590,100 @@ void VideoSendStream::Stop() {
   worker_queue_->PostTask([send_stream] { send_stream->Stop(); });
 }
 
+static void marshallEncodedImage(
+  rtc::ByteBufferWriter& b,
+  const EncodedImage& img,
+  const RTPFragmentationHeader* frag
+) {
+  // type 
+  b.WriteUInt8(1);
+  b.WriteUInt32(1);
+  b.WriteUInt8(1); // video
+
+  // time nanos
+  b.WriteUInt8(13);
+  b.WriteUInt32(8);
+  b.WriteUInt64(rtc::TimeNanos());
+
+  img.Marshall(b);
+
+  // frag
+  b.WriteUInt8(12);
+  b.WriteUInt32(frag->fragmentationVectorSize*8);
+  for (size_t i = 0; i < frag->fragmentationVectorSize; i++) {
+    b.WriteUInt32(frag->fragmentationOffset[i]);
+    b.WriteUInt32(frag->fragmentationLength[i]);
+  }
+}
+
+static void unmarshallEncodedImage(
+  rtc::ByteBufferReader& b,
+  EncodedImage& img,
+  RTPFragmentationHeader& frag
+) {
+  uint8_t type;
+  uint32_t len, v32;
+
+  for (;;) {
+    if (!b.ReadUInt8(&type)) {
+      break;
+    }
+    if (!b.ReadUInt32(&len)) {
+      break;
+    }
+
+    rtc::ByteBufferReader b2(b.Data(), len, b.Order());
+
+    if (img.Unmarshall(type, b2)) {
+      
+    } else if (type == 12) { // frag
+      frag.VerifyAndAllocateFragmentationHeader(len/8);
+      for (size_t i = 0; i < len/8; i++) {
+        if (b2.ReadUInt32(&v32)) {
+          frag.fragmentationOffset[i] = v32;
+        }
+        if (b2.ReadUInt32(&v32)) {
+          frag.fragmentationLength[i] = v32;
+        }
+      }
+    }
+
+    if (!b.Consume(len)) {
+      break;
+    }
+  }
+}
+
+void VideoSendStream::OnFrame(const VideoFrame& frame) {
+  LOG(LS_VERBOSE) << "VideoSendStream::OnFrame ";
+
+  VideoSendStreamImpl* send_stream = send_stream_.get();
+
+  CodecSpecificInfo codec_specific;
+  codec_specific.codecType = kVideoCodecH264;
+  codec_specific.codecSpecific.H264.packetization_mode = H264PacketizationMode::NonInterleaved;
+
+  EncodedImage img;
+  rtc::ByteBufferReader br(
+    frame.rawpkt->c_str(), frame.rawpkt->size(),
+    rtc::ByteBuffer::ByteOrder::ORDER_NETWORK
+  );
+  RTPFragmentationHeader frag;
+  unmarshallEncodedImage(br, img, frag);
+  
+  send_stream->OnEncodedImage(img, &codec_specific, &frag);
+}
+
 void VideoSendStream::SetSource(
     rtc::VideoSourceInterface<webrtc::VideoFrame>* source,
     const DegradationPreference& degradation_preference) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
-  video_stream_encoder_->SetSource(source, degradation_preference);
+
+  if (config_.rawpkt) {
+    source->AddOrUpdateSink(this, rtc::VideoSinkWants());
+  } else {
+    video_stream_encoder_->SetSource(source, degradation_preference);
+  }
 }
 
 void VideoSendStream::ReconfigureVideoEncoder(VideoEncoderConfig config) {
@@ -952,7 +1047,15 @@ void VideoSendStreamImpl::OnEncoderConfigurationChanged(
 EncodedImageCallback::Result VideoSendStreamImpl::OnEncodedImage(
     const EncodedImage& encoded_image,
     const CodecSpecificInfo* codec_specific_info,
-    const RTPFragmentationHeader* fragmentation) {
+    const RTPFragmentationHeader* fragmentation) {  
+
+  if (config_->dump_rawpkt) {
+    rtc::ByteBufferWriter bw(rtc::ByteBuffer::ByteOrder::ORDER_NETWORK);
+    marshallEncodedImage(bw, encoded_image, fragmentation);
+    LOG(LS_VERBOSE) << "DumpRawpkt " <<
+      rtc::hex_encode(bw.Data(), bw.Length());
+  }
+
   // Encoded is called on whatever thread the real encoder implementation run
   // on. In the case of hardware encoders, there might be several encoders
   // running in parallel on different threads.

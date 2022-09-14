@@ -199,6 +199,8 @@ class Channel
   int32_t ReceivedRTCPPacket(const uint8_t* data, size_t length);
   void OnRtpPacket(const RtpPacketReceived& packet);
 
+  uint32_t GetExtraDataLength(const uint8_t* packet, size_t packet_length);
+
   // Muting, Volume and Level.
   void SetInputMute(bool enable);
   void SetChannelOutputVolumeScaling(float scaling);

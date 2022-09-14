@@ -16,6 +16,66 @@ if (is_android) {
   import("//build/config/ios/rules.gni")
 }
 
+
+rtc_executable("wrtccmdhost") {
+  include_dirs = [
+    #"wrtccmdhost/include",
+    "//third_party/json/source/single_include",
+  ]
+  libs = [ 
+    #"wrtccmdhost/lib/libgrpc++.a",
+    #"wrtccmdhost/lib/libgrpc.a",
+    #"wrtccmdhost/lib/libgrpc++_reflection.a",
+    #"wrtccmdhost/lib/libgpr.a",
+    #"wrtccmdhost/lib/libprotobuf.a",
+  ]
+  sources = [
+    "wrtccmdhost/cmdhost.cpp",
+    "wrtccmdhost/cmdhost.hpp",
+    "wrtccmdhost/msgpump.hpp",
+    "wrtccmdhost/msgpump.cpp",
+    "wrtccmdhost/wrtcconn.cpp",
+    "wrtccmdhost/wrtcconn.hpp",
+    "wrtccmdhost/common.hpp",
+    "wrtccmdhost/input.hpp",
+    "wrtccmdhost/input.cpp",
+    "wrtccmdhost/main.cpp",
+    "wrtccmdhost/media.cpp",
+    "wrtccmdhost/media.hpp",
+    "wrtccmdhost/muxer.cpp",
+    "wrtccmdhost/muxer.hpp",
+    "wrtccmdhost/output.cpp",
+    "wrtccmdhost/output.hpp",
+    "wrtccmdhost/packet.cpp",
+    "wrtccmdhost/packet.hpp",
+    "wrtccmdhost/util.hpp",
+    "wrtccmdhost/stream.hpp",
+    "wrtccmdhost/stream.cpp",
+    #"wrtccmdhost/rpc.grpc.pb.cc",
+    #"wrtccmdhost/rpc.grpc.pb.h",
+    #"wrtccmdhost/rpc.pb.cc",
+    #"wrtccmdhost/rpc.pb.h",
+    #"wrtccmdhost/rpc.cpp",
+    #"wrtccmdhost/rpc.h",
+  ]
+  cflags = [ ]
+  #defines = [ "GOOGLE_PROTOBUF_NO_RTTI", "GPR_FORBID_UNREACHABLE_CODE", "PROTOBUF_INLINE_NOT_IN_HEADERS" ]
+  deps = [
+    "../rtc_base:rtc_base",
+    "../rtc_base:rtc_json",
+    "../pc:rtc_pc",
+    "../system_wrappers:field_trial_default",
+    "../system_wrappers:metrics_default",
+    "../pc:libjingle_peerconnection",
+    "../modules/audio_device:audio_device",
+    "//third_party/ffmpeg",
+    "//third_party/librtmp",
+    #"//third_party/protobuf:protobuf_full",
+  ]
+  suppressed_configs += [ "//build/config/clang:find_bad_constructs" ]
+}
+
+
 group("examples") {
   # This target shall build all targets in examples.
   testonly = true

@@ -43,8 +43,12 @@ config("audio_device_warnings_config") {
       "-Wno-unused-private-field",
     ]
   }
+  if (is_mac && is_clang){
+    cflags = [
+      "-Wno-deprecated-declarations",
+    ]
+  }
 }
-
 rtc_source_set("audio_device") {
   public_deps = [
     ":audio_device_generic",
@@ -264,6 +268,7 @@ rtc_source_set("mac_portaudio") {
     "mac/portaudio/pa_ringbuffer.c",
     "mac/portaudio/pa_ringbuffer.h",
   ]
+  configs += [ ":audio_device_warnings_config" ]
 }
 
 config("mock_audio_device_config") {

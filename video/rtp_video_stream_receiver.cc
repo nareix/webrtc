@@ -231,6 +231,7 @@ int32_t RtpVideoStreamReceiver::OnReceivedPayloadData(
   packet.timesNacked =
       nack_module_ ? nack_module_->OnReceivedPacket(packet) : -1;
   packet.receive_time_ms = clock_->TimeInMilliseconds();
+  packet.ssrc = rtp_header->header.ssrc;
 
   // In the case of a video stream without picture ids and no rtx the
   // RtpFrameReferenceFinder will need to know about padding to

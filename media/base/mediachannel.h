@@ -92,6 +92,10 @@ struct MediaConfig {
 
   // Video-specific config.
   struct Video {
+    // Use rawpkt
+    bool rawpkt = false;
+    bool dump_rawpkt = false;
+
     // Enable WebRTC CPU Overuse Detection. This flag comes from the
     // PeerConnection constraint 'googCpuOveruseDetection'.
     bool enable_cpu_overuse_detection = true;

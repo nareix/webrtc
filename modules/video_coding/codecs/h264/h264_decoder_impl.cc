@@ -13,11 +13,13 @@
 
 #include <algorithm>
 #include <limits>
+#include <fstream>
 
 extern "C" {
 #include "third_party/ffmpeg/libavcodec/avcodec.h"
 #include "third_party/ffmpeg/libavformat/avformat.h"
 #include "third_party/ffmpeg/libavutil/imgutils.h"
+#include "third_party/ffmpeg/libavcodec/h264.h"
 }  // extern "C"
 
 #include "api/video/i420_buffer.h"
@@ -27,6 +29,8 @@ extern "C" {
 #include "rtc_base/keep_ref_until_done.h"
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/metrics.h"
+
+std::map<std::string, std::list<AVPacket *>* > SeiQueues;
 
 namespace webrtc {
 
@@ -276,10 +280,14 @@ int32_t H264DecoderImpl::RegisterDecodeCompleteCallback(
 }
 
 int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
-                                bool /*missing_frames*/,
-                                const RTPFragmentationHeader* /*fragmentation*/,
+                                bool miss/*missing_frames*/,
+                                const RTPFragmentationHeader* frag/*fragmentation*/,
                                 const CodecSpecificInfo* codec_specific_info,
-                                int64_t /*render_time_ms*/) {
+                                int64_t time/*render_time_ms*/) {
+  if (input_image.RawPkt()) {
+      return Decode2(input_image, miss, frag, codec_specific_info, time);
+  }
+
   if (!IsInitialized()) {
     ReportError();
     return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
@@ -321,6 +329,17 @@ int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
   }
   packet.size = static_cast<int>(input_image._length);
   av_context_->reordered_opaque = input_image.ntp_time_ms_ * 1000;  // ms -> μs
+
+  //shoud grep ssrc, trackid.ssrc.reqid
+  auto ssrc = "." + std::to_string(input_image.SSRC()) + ".";
+  std::map<std::string, std::list<AVPacket *>* >::iterator iter;
+  for (iter = SeiQueues.begin(); iter != SeiQueues.end(); iter++){
+    auto key = iter->first;
+    std::string::size_type idx = key.find(ssrc);
+    if (idx != std::string::npos) {
+        this->ExtractSEIAndEnqueue(iter->second, input_image._buffer, input_image._length);
+    }
+  }
 
   int frame_decoded = 0;
   int result = avcodec_decode_video2(av_context_.get(),
@@ -397,6 +416,33 @@ int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
   return WEBRTC_VIDEO_CODEC_OK;
 }
 
+int32_t H264DecoderImpl::Decode2(const EncodedImage& frame,
+                                bool /*missing_frames*/,
+                                const RTPFragmentationHeader* /*fragmentation*/,
+                                const CodecSpecificInfo* codec_specific_info,
+                                int64_t /*render_time_ms*/) {
+  if (!IsInitialized()) {
+    ReportError();
+    return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
+  }
+  if (!decoded_image_callback_) {
+    LOG(LS_WARNING) << "InitDecode() has been called, but a callback function "
+        "has not been set with RegisterDecodeCompleteCallback()";
+    ReportError();
+    return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
+  }
+
+  rtc::ByteBufferWriter b;
+  frame.Marshall(b);
+  auto rawpkt = std::make_shared<std::string>(b.Data(), b.Length());
+  auto vframe = webrtc::VideoFrame(rawpkt);
+  vframe.set_timestamp(frame._timeStamp);
+  rtc::Optional<uint8_t> qp;
+  decoded_image_callback_->Decoded(vframe, rtc::Optional<int32_t>(),
+                                     qp);
+  return WEBRTC_VIDEO_CODEC_OK;
+}
+
 const char* H264DecoderImpl::ImplementationName() const {
   return "FFmpeg";
 }
@@ -421,6 +467,68 @@ void H264DecoderImpl::ReportError() {
                             kH264DecoderEventError,
                             kH264DecoderEventMax);
   has_reported_error_ = true;
+}
+
+void H264DecoderImpl::ExtractSEIAndEnqueue(std::list<AVPacket *>* queue, const uint8_t *buffer, const uint32_t length) {
+  if (!buffer || 0 == length) {
+    LOG(LS_WARNING) << "ExtractSEIAndEnqueue buffer is empty";
+    return;
+  }
+
+  if (!queue) {
+    LOG(LS_WARNING) << "ExtractSEIAndEnqueue queue is null";
+    return;
+  }
+
+
+  const uint8_t *end = buffer + length;
+  const uint8_t *p = NULL, *nalu_start = NULL;
+  u_int32_t nal_type_pos = 0;
+  while(buffer < end){
+    p = this->FindStartCode(buffer, end, &nal_type_pos);
+    if(nalu_start){
+        AVPacket *seiPacket = (AVPacket *)malloc(sizeof(AVPacket));
+        int size = p-nalu_start;
+        av_new_packet(seiPacket, size);
+        memcpy(seiPacket->data, nalu_start, size);
+        seiPacket->size = size;
+        queue->push_back(seiPacket);
+    }
+
+    if(p == end || (p+nal_type_pos) == end || NULL == p)
+      break;
+
+    if((*(p+nal_type_pos) & 0x1F) == H264_NAL_SEI){
+      nalu_start = p;
+    }else {
+      nalu_start = NULL;
+    }
+    buffer = p + nal_type_pos;
+    nal_type_pos = 0;
+  }
+
+  return;
+}
+
+const uint8_t* H264DecoderImpl::FindStartCode(const uint8_t *p, const uint8_t *end, uint32_t *length) {
+  if(!p || !end || !length){
+    return NULL;
+  }
+
+  if(p >=end || p + START_CODE_SHIFT > end)
+    return end;
+
+  while(p < end - START_CODE_SHIFT){
+    if((*p == 0) && (*(p+1) == 0) && (*(p+2) == 1)) {
+      *length = START_CODE_SHIFT;
+      return p;
+    } else if((*p == 0) && (*(p+1) == 0) && (*(p+2) == 0) && (*(p+3) == 1)) {
+      *length = START_CODE_SHIFT + 1;
+      return p;
+    }
+    p++;
+  }
+  return end;
 }
 
 }  // namespace webrtc

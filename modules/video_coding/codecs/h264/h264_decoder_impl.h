@@ -23,6 +23,9 @@ extern "C" {
 #include "common_video/h264/h264_bitstream_parser.h"
 #include "common_video/include/i420_buffer_pool.h"
 
+extern std::map<std::string, std::list<AVPacket *>* > SeiQueues;
+#define START_CODE_SHIFT 3
+
 namespace webrtc {
 
 struct AVCodecContextDeleter {
@@ -53,6 +56,12 @@ class H264DecoderImpl : public H264Decoder {
                  const CodecSpecificInfo* codec_specific_info = nullptr,
                  int64_t render_time_ms = -1) override;
 
+  int32_t Decode2(const EncodedImage& input_image,
+                 bool /*missing_frames*/,
+                 const RTPFragmentationHeader* /*fragmentation*/,
+                 const CodecSpecificInfo* codec_specific_info = nullptr,
+                 int64_t render_time_ms = -1);
+
   const char* ImplementationName() const override;
 
  private:
@@ -63,6 +72,9 @@ class H264DecoderImpl : public H264Decoder {
       AVCodecContext* context, AVFrame* av_frame, int flags);
   // Called by FFmpeg when it is done with a video frame, see |AVGetBuffer2|.
   static void AVFreeBuffer2(void* opaque, uint8_t* data);
+
+  void ExtractSEIAndEnqueue(std::list<AVPacket *>* queue, const uint8_t *buffer, const uint32_t length);
+  const uint8_t* FindStartCode(const uint8_t *p, const uint8_t *end, uint32_t *length);
 
   bool IsInitialized() const;
 

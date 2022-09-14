@@ -299,6 +299,11 @@ void VideoReceiveStream::OnFrame(const VideoFrame& video_frame) {
   }
   // config_.renderer must never be null if we're getting this callback.
   config_.renderer->OnFrame(video_frame);
+  if (video_frame.reqKeyFrame) {
+      RequestKeyFrame();
+      VideoFrame& vf = const_cast<VideoFrame&>(video_frame);
+      vf.reqKeyFrame = false;
+  }
 
   // TODO(tommi): OnRenderFrame grabs a lock too.
   stats_proxy_.OnRenderedFrame(video_frame);
@@ -418,7 +423,12 @@ bool VideoReceiveStream::Decode() {
   if (frame) {
     int64_t now_ms = clock_->TimeInMilliseconds();
     RTC_DCHECK_EQ(res, video_coding::FrameBuffer::ReturnReason::kFrameFound);
-    if (video_receiver_.Decode(frame.get()) == VCM_OK) {
+    int32_t decode_res = VCM_OK;
+    VCMEncodedFrame *encFrame = frame.get();
+    encFrame->SetRawPkt(config_.rawpkt);
+    decode_res = video_receiver_.Decode(encFrame);
+
+    if (decode_res == VCM_OK) {
       keyframe_required_ = false;
       frame_decoded_ = true;
       rtp_video_stream_receiver_.FrameDecoded(frame->picture_id);

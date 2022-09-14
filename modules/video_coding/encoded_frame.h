@@ -21,7 +21,7 @@
 
 namespace webrtc {
 
-class VCMEncodedFrame : protected EncodedImage {
+class VCMEncodedFrame : public EncodedImage {
  public:
   VCMEncodedFrame();
   explicit VCMEncodedFrame(const webrtc::EncodedImage& rhs);

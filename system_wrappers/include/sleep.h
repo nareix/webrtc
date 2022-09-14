@@ -12,12 +12,16 @@
 #ifndef SYSTEM_WRAPPERS_INCLUDE_SLEEP_H_
 #define SYSTEM_WRAPPERS_INCLUDE_SLEEP_H_
 
+#include <sys/types.h>
+
 namespace webrtc {
 
 // This function sleeps for the specified number of milliseconds.
 // It may return early if the thread is woken by some other event,
 // such as the delivery of a signal on Unix.
 void SleepMs(int msecs);
+
+void SleepNs(int64_t nsecs);
 
 }  // namespace webrtc
 

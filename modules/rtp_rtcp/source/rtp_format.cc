@@ -27,7 +27,9 @@ RtpPacketizer* RtpPacketizer::Create(RtpVideoCodecTypes type,
     case kRtpVideoH264:
       RTC_CHECK(rtp_type_header);
       return new RtpPacketizerH264(max_payload_len, last_packet_reduction_len,
-                                   rtp_type_header->H264.packetization_mode);
+                                  rtp_type_header->H264.packetization_mode);
+      // return new RtpPacketizerH264(max_payload_len, last_packet_reduction_len,
+      //                              H264PacketizationMode::NonInterleaved);
     case kRtpVideoVp8:
       RTC_CHECK(rtp_type_header);
       return new RtpPacketizerVp8(rtp_type_header->VP8, max_payload_len,

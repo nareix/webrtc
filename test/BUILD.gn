@@ -596,6 +596,12 @@ config("test_renderer_exported_config") {
       "-Wno-delete-non-virtual-dtor",
     ]
   }
+  if (is_mac && is_clang){
+    cflags=[
+      "-Wno-unused-function",
+      "-Wno-deprecated-declarations",
+    ]
+  }
 }
 
 rtc_source_set("test_renderer") {

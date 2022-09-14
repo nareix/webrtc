@@ -278,6 +278,8 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
     rtc::Optional<int> ice_check_min_interval;
     rtc::Optional<rtc::IntervalRange> ice_regather_interval_range;
     webrtc::TurnCustomizer* turn_customizer;
+    int ice_allocate_min_port;
+    int ice_allocate_max_port;
   };
   static_assert(sizeof(stuff_being_tested_for_equality) == sizeof(*this),
                 "Did you add something to RTCConfiguration and forget to "
@@ -314,7 +316,9 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
          redetermine_role_on_ice_restart == o.redetermine_role_on_ice_restart &&
          ice_check_min_interval == o.ice_check_min_interval &&
          ice_regather_interval_range == o.ice_regather_interval_range &&
-         turn_customizer == o.turn_customizer;
+         turn_customizer == o.turn_customizer &&
+         ice_allocate_min_port == o.ice_allocate_min_port &&
+         ice_allocate_max_port == o.ice_allocate_max_port;
 }
 
 bool PeerConnectionInterface::RTCConfiguration::operator!=(
@@ -2482,6 +2486,8 @@ bool PeerConnection::InitializePortAllocator_n(
   }
 
   port_allocator_->Initialize();
+
+  port_allocator_->SetPortRange(configuration.ice_allocate_min_port, configuration.ice_allocate_max_port);
 
   // To handle both internal and externally created port allocator, we will
   // enable BUNDLE here.

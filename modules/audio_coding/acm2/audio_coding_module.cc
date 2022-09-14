@@ -657,6 +657,7 @@ int AudioCodingModuleImpl::RegisterTransportCallback(
 int AudioCodingModuleImpl::Add10MsData(const AudioFrame& audio_frame) {
   InputData input_data;
   rtc::CritScope lock(&acm_crit_sect_);
+
   int r = Add10MsDataInternal(audio_frame, &input_data);
   return r < 0 ? r : Encode(input_data);
 }
