@@ -283,8 +283,7 @@ namespace muxer
 
                 // metadata
                 FlvMeta metadata_;
-                bool bVideoMetaSent_ = false;
-                bool bAudioMetaSent_ = false;
+		bool bMetaSent_ = false;
 
                 // URL target rtmp server
                 std::string url_;

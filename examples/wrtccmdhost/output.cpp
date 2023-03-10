@@ -1326,10 +1326,9 @@ int RtmpSender::SendStreamMetaInfo(IN const MediaPacket& _packet)
         if (_packet.Stream() != STREAM_AUDIO && _packet.Stream() != STREAM_VIDEO) {
                 return 0;
         }
-        if ((_packet.Stream() == STREAM_AUDIO && bAudioMetaSent_) ||
-            (_packet.Stream() == STREAM_VIDEO && bVideoMetaSent_)) {
-                return 0;
-        }
+	if (bMetaSent_) {
+		return 0;
+	}
 
         metadata_.PutPacketMetaInfo(_packet);
 
@@ -1341,13 +1340,8 @@ int RtmpSender::SendStreamMetaInfo(IN const MediaPacket& _packet)
                 XWarn("metadata information not sent, stream=%d, codec=%d", _packet.Stream(), _packet.Codec());
                 return -1;
         } else {
-                if (_packet.Stream() == STREAM_AUDIO) {
-                        bAudioMetaSent_ = true;
-                } else {
-                        bVideoMetaSent_ = true;
-                }
-        }
-
+		bMetaSent_ = true;
+	}
         return 0;
 }
 
