@@ -225,6 +225,11 @@ public:
         size_t number_of_channels,
         size_t number_of_frames)
     {
+	if (on_data_nr_ < 10) {
+       		Info("OnData id=%s n=%d", id_.c_str(), on_data_nr_);
+		on_data_nr_++;
+	}
+
         if (rawpkt) {
             if (streamOnFrameConvAAC) {
                 if (encoder == nullptr) {
@@ -299,6 +304,7 @@ public:
     std::shared_ptr<muxer::AudioResampler> resampler = nullptr;
     bool rawpkt = false;
     uint64_t videopts_base = 0;
+	int on_data_nr_ = 0;
 };
 
 class PeerConnectionObserver: public webrtc::PeerConnectionObserver {
